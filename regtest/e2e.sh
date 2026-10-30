@@ -39,7 +39,8 @@ listening_pids() {
 stop_pool() {
     for pid in $(listening_pids); do
         if command -v taskkill >/dev/null 2>&1; then
-            taskkill //F //T //PID "$pid" >/dev/null 2>&1 || true
+            # MSYS_NO_PATHCONV=1 (backend.sh setzt es für WSL): /F kommt unverändert an, //F wäre dann falsch
+            MSYS_NO_PATHCONV=1 taskkill /F /T /PID "$pid" >/dev/null 2>&1 || true
         else
             kill "$pid" 2>/dev/null || true
         fi

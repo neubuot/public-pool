@@ -15,6 +15,10 @@ export class BitcoinRpcService implements OnModuleInit {
     private blockHeight = 0;
     private client: AxiosInstance;
     private rpcRequestId = 0;
+    /** undefined = unknown, true = node still syncing (no jobs yet), false = synced */
+    private initialBlockDownload: boolean | undefined = undefined;
+    private lastSyncLog = 0;
+    private lastTemplateErrorLog = 0;
     private _newBlock$: BehaviorSubject<IMiningInfo> = new BehaviorSubject(undefined);
     public newBlock$ = this._newBlock$.pipe(filter(block => block != null), shareReplay({ refCount: true, bufferSize: 1 }));
 
@@ -74,9 +78,41 @@ export class BitcoinRpcService implements OnModuleInit {
             // Don't await this, otherwise it will block the rest of the program
             this.listenForNewBlocks(sock);
             await this.pollMiningInfo();
+            // Fallback poll: covers a node that was not reachable at startup or is still syncing
+            setInterval(this.pollMiningInfo.bind(this), 30000);
 
         } else {
             setInterval(this.pollMiningInfo.bind(this), 500);
+        }
+    }
+
+    /**
+     * True while the node is in initial block download. getblocktemplate fails then and the pool must not
+     * hand out jobs. Regtest is never gated (an idle regtest chain reports IBD after 24 hours).
+     */
+    private async isSyncing(miningInfo: IMiningInfo): Promise<boolean> {
+        if (this.initialBlockDownload === false || miningInfo.chain === 'regtest') {
+            return false;
+        }
+        try {
+            const info = await this.callRpc<{ initialblockdownload: boolean, blocks: number, headers: number, verificationprogress: number }>('getblockchaininfo');
+            if (info.initialblockdownload) {
+                this.initialBlockDownload = true;
+                const now = Date.now();
+                if (now - this.lastSyncLog > 60000) {
+                    this.lastSyncLog = now;
+                    console.log(`Bitcoin Core is syncing: block ${info.blocks} of ${info.headers} (${(info.verificationprogress * 100).toFixed(2)} %), no jobs until done`);
+                }
+                return true;
+            }
+            if (this.initialBlockDownload === true) {
+                console.log('Bitcoin Core finished syncing, starting to hand out jobs');
+            }
+            this.initialBlockDownload = false;
+            return false;
+        } catch (e) {
+            console.error('Error getblockchaininfo', e?.message ?? e);
+            return true;
         }
     }
 
@@ -89,7 +125,13 @@ export class BitcoinRpcService implements OnModuleInit {
 
     public async pollMiningInfo() {
         const miningInfo = await this.getMiningInfo();
-        if (miningInfo != null && miningInfo.blocks > this.blockHeight) {
+        if (miningInfo == null) {
+            return;
+        }
+        if (await this.isSyncing(miningInfo)) {
+            return;
+        }
+        if (miningInfo.blocks > this.blockHeight) {
             console.log("block height change");
             this._newBlock$.next(miningInfo);
             this.blockHeight = miningInfo.blocks;
@@ -146,14 +188,29 @@ export class BitcoinRpcService implements OnModuleInit {
     private async loadBlockTemplate(blockHeight: number) {
 
         let blockTemplate: IBlockTemplate;
+        let attempts = 0;
         while (blockTemplate == null) {
-            blockTemplate = await this.callRpc<IBlockTemplate>('getblocktemplate', [
-                {
-                    rules: ['segwit'],
-                    mode: 'template',
-                    capabilities: ['serverlist', 'proposal']
+            try {
+                blockTemplate = await this.callRpc<IBlockTemplate>('getblocktemplate', [
+                    {
+                        rules: ['segwit'],
+                        mode: 'template',
+                        capabilities: ['serverlist', 'proposal']
+                    }
+                ]);
+            } catch (e) {
+                // e.g. node restarting or briefly behind; retry instead of killing the job stream
+                attempts++;
+                if (attempts > 60) {
+                    throw e;
                 }
-            ]);
+                const now = Date.now();
+                if (now - this.lastTemplateErrorLog > 60000) {
+                    this.lastTemplateErrorLog = now;
+                    console.error(`getblocktemplate failed (${e?.message ?? e}), retrying every 10 s`);
+                }
+                await new Promise(r => setTimeout(r, 10000));
+            }
         }
 
 

@@ -1,0 +1,150 @@
+name: nerdpool
+
+# Beta-Server: Bitcoin Core (pruned), Doichain Core, Pool, Caddy mit Übergangs-Dashboard.
+# Konfiguration in .env (Vorlage .env.example), Pool-Einstellungen in pool.env.
+
+x-rpc-allow: &rpc-allow
+  # Docker-Netze; die RPC-Ports werden nicht nach außen veröffentlicht
+  - -rpcbind=0.0.0.0
+  - -rpcallowip=172.16.0.0/12
+  - -rpcallowip=10.0.0.0/8
+  - -rpcallowip=192.168.0.0/16
+
+services:
+  bitcoind:
+    image: bitcoin/bitcoin:${BITCOIN_IMAGE_TAG:-29.5}
+    container_name: nerdpool-bitcoind
+    restart: unless-stopped
+    stop_grace_period: 10m
+    command:
+      - -server=1
+      - -printtoconsole
+      - -prune=${BITCOIN_PRUNE_MB:-20000}
+      - -dbcache=${BITCOIN_DBCACHE_MB:-1500}
+      - -maxmempool=300
+      - -maxconnections=40
+      - -listen=1
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=172.16.0.0/12
+      - -rpcallowip=10.0.0.0/8
+      - -rpcallowip=192.168.0.0/16
+      - -rpcuser=${BITCOIN_RPC_USER:-pool}
+      - -rpcpassword=${BITCOIN_RPC_PASSWORD:?BITCOIN_RPC_PASSWORD in .env setzen}
+      - -zmqpubrawblock=tcp://0.0.0.0:28332
+      - -zmqpubhashblock=tcp://0.0.0.0:28333
+    ports:
+      - "8333:8333"
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-rpcuser=${BITCOIN_RPC_USER:-pool}", "-rpcpassword=${BITCOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 60s
+      timeout: 20s
+      retries: 5
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  doichaind:
+    build: ./doichain
+    image: nerdpool/doichain-core:v31.1.6
+    container_name: nerdpool-doichaind
+    restart: unless-stopped
+    stop_grace_period: 5m
+    command:
+      - -server=1
+      - -printtoconsole
+      - -datadir=/data
+      - -listen=1
+      - -maxconnections=40
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=172.16.0.0/12
+      - -rpcallowip=10.0.0.0/8
+      - -rpcallowip=192.168.0.0/16
+      - -rpcuser=${DOICHAIN_RPC_USER:-pool}
+      - -rpcpassword=${DOICHAIN_RPC_PASSWORD:?DOICHAIN_RPC_PASSWORD in .env setzen}
+    ports:
+      - "8338:8338"
+    volumes:
+      - doichain-data:/data
+    healthcheck:
+      test: ["CMD", "doichain-cli", "-datadir=/data", "-rpcuser=${DOICHAIN_RPC_USER:-pool}", "-rpcpassword=${DOICHAIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 60s
+      timeout: 20s
+      retries: 5
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  pool:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: nerdpool/pool:latest
+    container_name: nerdpool-pool
+    restart: unless-stopped
+    depends_on:
+      - bitcoind
+      - doichaind
+    env_file:
+      - ./pool.env
+    environment:
+      - NODE_ENV=production
+      - BITCOIN_RPC_USER=${BITCOIN_RPC_USER:-pool}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
+      - DOICHAIN_RPC_USER=${DOICHAIN_RPC_USER:-pool}
+      - DOICHAIN_RPC_PASSWORD=${DOICHAIN_RPC_PASSWORD}
+      - DOICHAIN_DEFAULT_ADDRESS=${DOICHAIN_DEFAULT_ADDRESS:?DOICHAIN_DEFAULT_ADDRESS in .env setzen}
+      - POOL_IDENTIFIER=${POOL_IDENTIFIER:-NerdPool}
+      - DEV_FEE_ADDRESS=${DEV_FEE_ADDRESS:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+    ports:
+      # Stratum nach außen, die API (3334) bleibt im Docker-Netz und wird von Caddy unter /api ausgeliefert
+      - "${STRATUM_PORT:-3333}:3333"
+    volumes:
+      - pool-db:/public-pool/DB
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  web:
+    build:
+      context: ./web
+      args:
+        UI_COMMIT: ${UI_COMMIT:-ad4bb5bb79dc445be494d440af1d9aa5d953854d}
+        STRATUM_URL: ${POOL_DOMAIN:?POOL_DOMAIN in .env setzen}:${STRATUM_PORT:-3333}
+    image: nerdpool/web:latest
+    container_name: nerdpool-web
+    restart: unless-stopped
+    depends_on:
+      - pool
+    environment:
+      - POOL_DOMAIN=${POOL_DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  bitcoin-data:
+  doichain-data:
+  pool-db:
+  caddy-data:
+  caddy-config:

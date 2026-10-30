@@ -25,7 +25,7 @@ services:
       - bitcoin-data:/home/bitcoin/.bitcoin
 
   doichaind:
-    build: ./doichain
+    build: ../deploy/doichain
     image: nerdpool/doichain-core:v31.1.6
     container_name: nerdpool-doichaind
     command:

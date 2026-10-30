@@ -5,3 +5,12 @@ Dockerfile
 .vscode
 .gitignore
 full-setup/
+.git
+DB/
+dist/
+*.sqlite
+regtest/.cache/
+regtest/pool-e2e.log
+regtest/generated.env
+deploy/
+tools/
