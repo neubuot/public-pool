@@ -46,3 +46,4 @@ settings.json
 /regtest/.cache/
 /regtest/generated.env
 /regtest/pool-e2e.log
+__pycache__/
