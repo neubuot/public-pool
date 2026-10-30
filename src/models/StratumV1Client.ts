@@ -29,6 +29,7 @@ import { SuggestDifficulty } from './stratum-messages/SuggestDifficultyMessage';
 import { StratumV1ClientStatistics } from './StratumV1ClientStatistics';
 import { ExternalSharesService } from '../services/external-shares.service';
 import { DoichainRpcService } from '../services/doichain-rpc.service';
+import { PoolEventsService } from '../services/pool-events.service';
 import { hashMeetsTarget } from './auxpow';
 
 const TRUE_DIFF_ONE = 2.695953529101131e67;
@@ -79,7 +80,8 @@ export class StratumV1Client {
         private readonly configService: ConfigService,
         private readonly addressSettingsService: AddressSettingsService,
         private readonly externalSharesService: ExternalSharesService,
-        private readonly doichainRpcService?: DoichainRpcService
+        private readonly doichainRpcService?: DoichainRpcService,
+        private readonly poolEventsService?: PoolEventsService
     ) {
 
         this.socket.on('data', (data: Buffer) => {
@@ -108,6 +110,14 @@ export class StratumV1Client {
     public async destroy() {
 
         if (this.extraNonceAndSessionId) {
+            if (this.clientAuthorization != null) {
+                this.poolEventsService?.emit({
+                    type: 'disconnect',
+                    address: this.clientAuthorization.address,
+                    worker: this.clientAuthorization.worker,
+                    session: this.extraNonceAndSessionId
+                });
+            }
             await this.clientService.delete(this.extraNonceAndSessionId);
         }
 
@@ -402,8 +412,20 @@ export class StratumV1Client {
         }
 
         await this.resolveDoiAddress();
+        this.poolEventsService?.emit({
+            type: 'connect',
+            address: this.clientAuthorization.address,
+            worker: this.clientAuthorization.worker,
+            session: this.extraNonceAndSessionId,
+            data: {
+                userAgent: this.clientSubscription?.userAgent ?? null,
+                difficulty: this.sessionDifficulty,
+                mergedMining: this.doiAddress != null,
+                doiAddress: this.doiAddress
+            }
+        });
 
-        this.stratumSubscription = this.stratumV1JobsService.newMiningJob$.subscribe(async (jobTemplate) => {
+        this.stratumSubscription =this.stratumV1JobsService.newMiningJob$.subscribe(async (jobTemplate) => {
             try {
                 if(jobTemplate.blockData.clearJobs){
                     this.miningSubmissionHashes.clear();
@@ -516,7 +538,8 @@ export class StratumV1Client {
                     clientName: this.clientAuthorization.worker,
                     userAgent: this.clientSubscription.userAgent,
                     startTime: new Date(),
-                    bestDifficulty: 0
+                    bestDifficulty: 0,
+                    doiAddress: this.doiAddress
                 });
             })();
         }
@@ -599,6 +622,13 @@ export class StratumV1Client {
             if (!success) {
                 return false;
             }
+            this.poolEventsService?.emit({
+                type: 'share',
+                address: this.clientAuthorization.address,
+                worker: this.clientAuthorization.worker,
+                session: this.extraNonceAndSessionId,
+                data: { difficulty: this.sessionDifficulty, shareDifficulty: submissionDifficulty }
+            });
 
             // Merged mining: the same header hash may satisfy the (much lower) Doichain target.
             if (job.auxBlock != null && hashMeetsTarget(submissionHashBuffer, job.auxTarget)) {
@@ -628,6 +658,14 @@ export class StratumV1Client {
                     result: typeof result === 'string' ? result : JSON.stringify(result)
                 });
 
+                this.poolEventsService?.emit({
+                    type: 'block',
+                    chain: 'BTC',
+                    address: this.clientAuthorization.address,
+                    worker: this.clientAuthorization.worker,
+                    session: this.extraNonceAndSessionId,
+                    data: { height: jobTemplate.blockData.height, hash: updatedJobBlock.getId(), accepted: result == null || result === 'SUCCESS!' }
+                });
                 await this.notificationService.notifySubscribersBlockFound(this.clientAuthorization.address, jobTemplate.blockData.height, updatedJobBlock, result);
                 //success
                 if (result == null) {
@@ -695,7 +733,15 @@ export class StratumV1Client {
 
         if (targetDiff != this.sessionDifficulty) {
             //console.log(`Adjusting ${this.extraNonceAndSessionId} difficulty from ${this.sessionDifficulty} to ${targetDiff}`);
+            const previousDifficulty = this.sessionDifficulty;
             this.sessionDifficulty = targetDiff;
+            this.poolEventsService?.emit({
+                type: 'vardiff',
+                address: this.clientAuthorization?.address,
+                worker: this.clientAuthorization?.worker,
+                session: this.extraNonceAndSessionId,
+                data: { from: previousDifficulty, to: targetDiff }
+            });
 
             const data = JSON.stringify({
                 id: null,
@@ -778,6 +824,14 @@ export class StratumV1Client {
         try {
             const auxPowHex = job.buildAuxPowHex(jobTemplate, versionMask, nonce, this.extraNonceAndSessionId, extraNonce2, timestamp);
             const result = await this.doichainRpcService.submitAuxBlock(job.auxBlock.hash, auxPowHex);
+            this.poolEventsService?.emit({
+                type: 'block',
+                chain: 'DOI',
+                address: this.clientAuthorization.address,
+                worker: this.clientAuthorization.worker,
+                session: this.extraNonceAndSessionId,
+                data: { height: job.auxBlock.height, hash: job.auxBlock.hash, accepted: result.accepted, message: result.message }
+            });
             await this.blocksService.save({
                 chain: 'DOI',
                 height: job.auxBlock.height,

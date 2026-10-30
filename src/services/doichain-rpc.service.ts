@@ -199,6 +199,14 @@ export class DoichainRpcService implements OnModuleInit {
         return this.callRpc<number>('getblockcount');
     }
 
+    /** Generic read-only RPC call for statistics and the explorer. */
+    public async rpc<T>(method: string, params: unknown[] = []): Promise<T> {
+        if (!this.enabled || this.client == null) {
+            throw new Error('Doichain RPC ist nicht aktiv');
+        }
+        return this.callRpc<T>(method, params);
+    }
+
     private async callRpc<T>(method: string, params: unknown[] = []): Promise<T> {
         const response = await this.client.post('', {
             jsonrpc: '1.0',

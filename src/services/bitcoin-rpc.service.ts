@@ -264,6 +264,21 @@ export class BitcoinRpcService implements OnModuleInit {
 
     }
 
+    /** Generic read-only RPC call for statistics and the explorer; failures come back as Error objects. */
+    public async rpc<T>(method: string, params: unknown[] = []): Promise<T> {
+        try {
+            return await this.callRpc<T>(method, params);
+        } catch (e) {
+            if (e instanceof Error && e.message != null && (e as any).response == null) {
+                throw e;
+            }
+            const rpcError = (e as any)?.response?.data?.error ?? e;
+            const message = rpcError?.message ?? (typeof rpcError === 'string' ? rpcError : JSON.stringify(rpcError));
+            const code = rpcError?.code != null ? ` (code ${rpcError.code})` : '';
+            throw new Error(`Bitcoin RPC ${method}: ${message}${code}`);
+        }
+    }
+
     private async callRpc<T>(method: string, params: unknown[] = []): Promise<T> {
         const response = await this.client.post('', {
             jsonrpc: '1.0',

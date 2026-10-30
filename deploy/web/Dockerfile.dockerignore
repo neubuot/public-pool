@@ -1,0 +1,8 @@
+# Gilt für deploy/web/Dockerfile (Kontext ist das Repository): nur das Dashboard und die Caddy-Dateien
+*
+!web/
+web/node_modules
+web/dist
+web/.claude
+!deploy/web/
+deploy/web/Dockerfile*

@@ -14,3 +14,13 @@ regtest/pool-e2e.log
 regtest/generated.env
 deploy/
 tools/
+web/node_modules
+web/dist
+web/.claude
+dist
+DB
+regtest/data
+*.log
+.env*
+deploy/.env
+web/

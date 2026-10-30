@@ -3,10 +3,16 @@
 }
 
 %%POOL_DOMAIN%% {
-    encode zstd gzip
+    # Ereignisstrom des Pools (Server-sent events): ungepuffert und unkomprimiert durchreichen
+    handle /api/stats/events* {
+        reverse_proxy pool:3334 {
+            flush_interval -1
+        }
+    }
 
     # Pool-API (NestJS, Präfix /api) im Docker-Netz
     handle /api/* {
+        encode zstd gzip
         reverse_proxy pool:3334
     }
 
@@ -27,14 +33,19 @@
         file_server
     }
 
-    # Dashboard (Angular, Single-Page-App)
+    # Dashboard (Single-Page-App): gebaute Dateien, alles andere auf index.html
     handle {
+        encode zstd gzip
         root * /srv/ui
         try_files {path} /index.html
-        file_server {
-            precompressed br gzip
-        }
+        file_server
     }
+
+    # gebaute Assets tragen einen Hash im Namen, index.html und config.js müssen frisch bleiben
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+    @fresh path / /index.html /config.js
+    header @fresh Cache-Control "no-cache"
 
     header {
         -Server

@@ -12,6 +12,7 @@ import { BitcoinRpcService } from './bitcoin-rpc.service';
 import { DoichainRpcService } from './doichain-rpc.service';
 import { ExternalSharesService } from './external-shares.service';
 import { NotificationService } from './notification.service';
+import { PoolEventsService } from './pool-events.service';
 import { StratumV1JobsService } from './stratum-v1-jobs.service';
 
 interface StratumListenerState {
@@ -47,7 +48,8 @@ export class StratumV1Service implements OnModuleInit {
         private readonly stratumV1JobsService: StratumV1JobsService,
         private readonly addressSettingsService: AddressSettingsService,
         private readonly externalSharesService: ExternalSharesService,
-        private readonly doichainRpcService?: DoichainRpcService
+        private readonly doichainRpcService?: DoichainRpcService,
+        private readonly poolEventsService?: PoolEventsService
     ) {
 
     }
@@ -98,7 +100,8 @@ export class StratumV1Service implements OnModuleInit {
                 this.configService,
                 this.addressSettingsService,
                 this.externalSharesService,
-                this.doichainRpcService
+                this.doichainRpcService,
+                this.poolEventsService
             );
 
 

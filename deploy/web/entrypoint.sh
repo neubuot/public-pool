@@ -1,20 +1,16 @@
 #!/bin/sh
-# Schreibt die Laufzeit-Konfiguration des UI (API relativ unter /api, Stratum-Adresse) und startet Caddy.
+# Schreibt die Laufzeit-Konfiguration des Dashboards (Domain, Stratum-Port), trägt die Domain in die Rechtstexte
+# ein, erzeugt das Caddyfile und startet Caddy.
 set -eu
 
 : "${POOL_DOMAIN:?POOL_DOMAIN fehlt}"
-STRATUM_URL=${STRATUM_URL:-$POOL_DOMAIN:3333}
+STRATUM_PORT=${STRATUM_PORT:-3333}
+BETA=${POOL_BETA:-true}
 
-mkdir -p /srv/ui/assets
-# API relativ (Caddy reicht /api an den Pool weiter). Der gebaute UI-Stand liest API_URL und STRATUM_URL;
-# die übrigen Schlüssel sind für neuere UI-Stände vorbelegt (leer = Zeile ausgeblendet), sonst zeigten
-# die die eingebauten public-pool.io-Adressen.
-cat > /srv/ui/assets/runtime-config.js <<EOF
-window.__PUBLIC_POOL_CONFIG__ = {"API_URL":"","STRATUM_URL":"${STRATUM_URL}","SECURE_STRATUM_URL":"","STRATUM_V2_URL":"","PPLNS_STRATUM_URL":"","PPLNS_SECURE_STRATUM_URL":"","PPLNS_STRATUM_V2_URL":"","PPLNS_DATUM_URL":""};
+# index.html lädt /config.js vor der App; die API ist relativ unter /api (Caddy reicht sie an den Pool weiter)
+cat > /srv/ui/config.js <<EOF
+window.__NERDPOOL__ = {"domain":"${POOL_DOMAIN}","stratumPort":${STRATUM_PORT},"beta":${BETA}};
 EOF
-# Caddy liefert vorkomprimierte Kopien bevorzugt aus; eine veraltete .br/.gz würde den Platzhalter aus dem
-# Build statt dieser Datei liefern (dann fällt das UI auf public-pool.io zurück)
-rm -f /srv/ui/assets/runtime-config.js.br /srv/ui/assets/runtime-config.js.gz
 
 # Domain in die Rechtstexte eintragen (Kopie, damit ein Bind-Mount der Vorlagen schreibgeschützt bleiben kann)
 if [ -d /srv/legal-src ]; then
@@ -32,5 +28,5 @@ else
 fi
 sed -e "s|%%POOL_DOMAIN%%|${POOL_DOMAIN}|g" -e "s|%%ACME_EMAIL_LINE%%|${email_line}|" /etc/caddy/Caddyfile.tpl > /etc/caddy/Caddyfile
 
-echo "Dashboard für ${POOL_DOMAIN}, Stratum ${STRATUM_URL}"
+echo "Dashboard für ${POOL_DOMAIN}, Stratum-Port ${STRATUM_PORT}"
 exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile

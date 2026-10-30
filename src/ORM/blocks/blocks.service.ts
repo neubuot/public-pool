@@ -31,7 +31,8 @@ export class BlocksService {
                 sessionId: true,
                 chain: true,
                 blockHash: true,
-                result: true
+                result: true,
+                createdAt: true
             }
         });
     }
@@ -50,6 +51,44 @@ export class BlocksService {
             where: {
                 minerAddress: address
             }
+        });
+    }
+
+    /** Newest blocks first, with the time they were found (for the dashboard and the explorer). */
+    public async getRecentBlocks(limit: number) {
+        return await this.blocksRepository.find({
+            select: {
+                id: true,
+                height: true,
+                minerAddress: true,
+                worker: true,
+                sessionId: true,
+                chain: true,
+                blockHash: true,
+                result: true,
+                createdAt: true
+            },
+            order: { id: 'DESC' },
+            take: limit
+        });
+    }
+
+    public async getRecentBlocksByAddress(address: string, limit: number) {
+        return await this.blocksRepository.find({
+            select: {
+                id: true,
+                height: true,
+                minerAddress: true,
+                worker: true,
+                sessionId: true,
+                chain: true,
+                blockHash: true,
+                result: true,
+                createdAt: true
+            },
+            where: { minerAddress: address },
+            order: { id: 'DESC' },
+            take: limit
         });
     }
 }

@@ -28,6 +28,14 @@ import { TelegramService } from './services/telegram.service';
 import { ExternalSharesService } from './services/external-shares.service';
 import { ExternalShareController } from './controllers/external-share/external-share.controller';
 import { ExternalSharesModule } from './ORM/external-shares/external-shares.module';
+import { ChainSampleModule } from './ORM/chain-sample/chain-sample.module';
+import { ChainStatsService } from './services/chain-stats.service';
+import { ExplorerService } from './services/explorer.service';
+import { PoolEventsService } from './services/pool-events.service';
+import { StatsController } from './controllers/stats/stats.controller';
+import { ExplorerController } from './controllers/explorer/explorer.controller';
+import { MinerController } from './controllers/miner/miner.controller';
+import { ValidateController } from './controllers/validate/validate.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -36,7 +44,8 @@ const ORMModules = [
     TelegramSubscriptionsModule,
     BlocksModule,
     RpcBlocksModule,
-    ExternalSharesModule
+    ExternalSharesModule,
+    ChainSampleModule
 ]
 
 @Module({
@@ -61,9 +70,16 @@ const ORMModules = [
         AppController,
         ClientController,
         AddressController,
-        ExternalShareController
+        ExternalShareController,
+        StatsController,
+        ExplorerController,
+        MinerController,
+        ValidateController
     ],
     providers: [
+        PoolEventsService,
+        ChainStatsService,
+        ExplorerService,
         DiscordService,
         AppService,
         StratumV1Service,

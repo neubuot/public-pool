@@ -47,3 +47,10 @@ settings.json
 /regtest/generated.env
 /regtest/pool-e2e.log
 __pycache__/
+
+# lokale Umgebungen (nur .env.example gehört ins Repo)
+.env.*
+!.env.example
+
+# Claude-Code-Sitzungsdateien (Vorschau-Server)
+.claude/

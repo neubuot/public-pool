@@ -1,7 +1,7 @@
 # Beta-Server: Pool mit Merged Mining betreiben
 
-Ein Server, fünf Container: Bitcoin Core (pruned), Doichain Core, der Pool, und Caddy mit dem
-Übergangs-Dashboard (public-pool-ui). Zielgruppe: eine geschlossene Beta mit einer Handvoll Bitaxe,
+Ein Server, vier Container: Bitcoin Core (pruned), Doichain Core, der Pool, und Caddy mit dem
+NerdPool-Dashboard (`web/`). Zielgruppe: eine geschlossene Beta mit einer Handvoll Bitaxe,
 später derselbe Aufbau für den öffentlichen Betrieb.
 
 | Container | Image | Aufgabe | Ports nach außen |
@@ -9,7 +9,7 @@ später derselbe Aufbau für den öffentlichen Betrieb.
 | nerdpool-bitcoind | bitcoin/bitcoin:29.5 | Parent-Kette, getblocktemplate, ZMQ | 8333 (P2P) |
 | nerdpool-doichaind | nerdpool/doichain-core:v31.1.6 (statisches Release-Binary, Prüfsumme) | Aux-Kette, createauxblock, submitauxblock | 8338 (P2P) |
 | nerdpool-pool | aus diesem Repository gebaut | Stratum und API | 3333 (Stratum) |
-| nerdpool-web | Caddy mit public-pool-ui | HTTPS, Dashboard, /api an den Pool | 80, 443 |
+| nerdpool-web | Caddy mit dem Dashboard aus `web/` (Vite + Svelte) | HTTPS, Dashboard, /api an den Pool | 80, 443 |
 
 RPC-Ports und die Pool-API bleiben im Docker-Netz.
 
@@ -64,11 +64,20 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
 
 Ohne DOI-Adresse im Passwort geht die DOI-Belohnung an `DOICHAIN_DEFAULT_ADDRESS`. Das Dashboard unter
-`https://pool.doilabs.org` zeigt die Verbindungsanleitung (Benutzername und DOI-Passwort), Hashrate, Shares
-und Best Difficulty je Adresse sowie gefundene Blöcke mit Kette (BTC oder DOI). Es ist public-pool-ui am
-Commit `5f730f4` mit dem Patch `web/nerdpool-ui.patch` (Titel, Anleitung, Kettenspalte, keine
-public-pool.io-Links und -Spendenadressen); neuere UI-Stände erwarten API-Routen, die das Backend nicht hat.
-Gefundene DOI-Blöcke stehen außerdem in der API unter `/api/pool` mit `chain = DOI` und im Pool-Log.
+`https://pool.doilabs.org` (Quellcode in `web/`, Beschreibung in `web/README.md`) führt durch das Onboarding
+(Adressen prüfen, Zugangsdaten erzeugen, wartet auf den ersten Share), zeigt die Pool-Statistik mit
+Instrumenten und Charts für beide Ketten, ein Miner-Dashboard je BTC-Adresse unter `/d/<adresse>`, alle
+gefundenen Blöcke mit Kette, einen Explorer für Doichain (eigener Node mit Transaktionsindex) und Bitcoin
+(jüngste Blöcke vom eigenen Node, Details über mempool.space) sowie eine Teilen-Karte je Block. Die API dazu:
+`/api/stats` (Ketten, Pool, Chancen, Kurse, alle 30 s erneuert), `/api/stats/history?range=24h|7d|30d|90d`
+(Stichproben alle 5 Minuten, 90 Tage), `/api/stats/events` (Server-sent events: Shares, Blöcke, Verbindungen,
+Kettenspitzen), `/api/miner/:address`, `/api/validate/{btc,doi}/:address`, `/api/explorer/...`. Der Pool-Kurs
+kommt von CoinGecko (`PRICE_URL`, `off` schaltet ab), Bitcoin-Details von `MEMPOOL_API_URL`
+(Vorgabe mempool.space). Gefundene DOI-Blöcke stehen außerdem in der API unter `/api/pool` mit `chain = DOI`
+und im Pool-Log.
+
+Dashboard neu bauen: `docker compose build web && docker compose up -d web` (Build-Kontext ist das
+Repository, Dockerfile `deploy/web/Dockerfile`, Ausschlüsse in `deploy/web/Dockerfile.dockerignore`).
 
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 

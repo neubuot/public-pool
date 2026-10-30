@@ -37,5 +37,9 @@ export class ClientEntity extends TrackedEntity {
     @Column({ default: 0 })
     hashRate: number;
 
+    /** Doichain payout address used for merged mining (stratum password or the pool default), null for Bitcoin only */
+    @Column({ length: 90, type: 'varchar', nullable: true })
+    doiAddress: string;
+
 }
 

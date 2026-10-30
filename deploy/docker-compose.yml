@@ -1,6 +1,6 @@
 name: nerdpool
 
-# Beta-Server: Bitcoin Core (pruned), Doichain Core, Pool, Caddy mit Übergangs-Dashboard.
+# Beta-Server: Bitcoin Core (pruned), Doichain Core, Pool, Caddy mit dem NerdPool-Dashboard.
 # Konfiguration in .env (Vorlage .env.example), Pool-Einstellungen in pool.env.
 
 x-rpc-allow: &rpc-allow
@@ -63,6 +63,8 @@ services:
       # RPC-Port 8339 ("Failed to listen on any port"); mit explizitem Bind auf den P2P-Port 8338 startet es.
       - -bind=0.0.0.0:8338
       - -listenonion=0
+      # Transaktionsindex für den Explorer (getrawtransaction beliebiger Transaktionen), wird im Hintergrund aufgebaut
+      - -txindex=1
       - -maxconnections=40
       - -rpcbind=0.0.0.0
       - -rpcallowip=172.16.0.0/12
@@ -121,17 +123,18 @@ services:
 
   web:
     build:
-      context: ./web
-      args:
-        UI_COMMIT: ${UI_COMMIT:-5f730f4f34846020c644ec96a9bd2b41dba847b9}
-        STRATUM_URL: ${POOL_DOMAIN:?POOL_DOMAIN in .env setzen}:${STRATUM_PORT:-3333}
+      # Dashboard aus web/ (Vite + Svelte), Rechtstexte und Caddy-Vorlage aus deploy/web
+      context: ..
+      dockerfile: deploy/web/Dockerfile
     image: nerdpool/web:latest
     container_name: nerdpool-web
     restart: unless-stopped
     depends_on:
       - pool
     environment:
-      - POOL_DOMAIN=${POOL_DOMAIN}
+      - POOL_DOMAIN=${POOL_DOMAIN:?POOL_DOMAIN in .env setzen}
+      - STRATUM_PORT=${STRATUM_PORT:-3333}
+      - POOL_BETA=${POOL_BETA:-true}
       - ACME_EMAIL=${ACME_EMAIL:-}
     ports:
       - "80:80"
