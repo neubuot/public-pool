@@ -50,6 +50,12 @@ python3 /root/nerdpool-kuma.py --fortsetzen "NerdPool Health (pool.doilabs.org/a
 Der Health-Monitor lässt sich auch in der Kuma-Oberfläche mit „Fortsetzen“ aktivieren. Ohne Eintrag im
 NOC-Katalog bleibt ein Kuma-Monitor dort unsichtbar, das Skript legt beides zusammen an.
 
+Damit niemand das Ende des Erstabgleichs abpassen muss, liegt auf der Docker-VM ein Einmal-Auftrag:
+`/etc/cron.d/nerdpool-health-aktivieren` ruft alle zehn Minuten `/root/nerdpool-health-aktivieren.sh` auf. Das Skript
+holt `/api/health`, und sobald dort `"ok":true` steht, führt es den Befehl `--fortsetzen` von oben aus und löscht
+den Cron-Eintrag. Protokoll: `/var/log/nerdpool-health-aktivieren.log` (während des Erstabgleichs eine Zeile pro
+Stunde). Schlägt das Aktivieren fehl, versucht es der Auftrag alle zehn Minuten erneut.
+
 ## Alternative: Socket-API (Kuma 1.x)
 
 `kuma-add-monitors.py` legt dieselben Monitore mit den Kurznamen „NerdPool Stratum“ usw. über die Socket-API
