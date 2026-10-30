@@ -136,6 +136,8 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      # Rechtstexte: Änderungen hier brauchen nur "docker compose restart web", keinen Neubau
+      - ./web/legal:/srv/legal-src:ro
     logging:
       driver: json-file
       options:

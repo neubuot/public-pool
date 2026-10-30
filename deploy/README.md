@@ -70,16 +70,28 @@ noch keine DOI-Blöcke, die stehen in der API unter `/api/pool` mit `chain = DOI
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`. Das Übergangs-Dashboard zeigt
 trotzdem eine Adresse mit Port 4333 als "secure" an, die ist nicht aktiv.
 
+## Rechtstexte
+
+Impressum, Datenschutzerklärung und Nutzungsbedingungen liegen als statische Seiten in `web/legal/` und
+sind unter `/impressum`, `/datenschutz` und `/nutzungsbedingungen` erreichbar; das Dashboard verlinkt sie in
+der Fußzeile. Der Ordner ist in den Web-Container eingebunden, Änderungen brauchen nur
+`docker compose restart web`. Vor dem Start ausfüllen (Platzhalter in eckigen Klammern im Impressum):
+HRB-Nummer, Vorsitz des Aufsichtsrats, Telefonnummer; Registergericht Landshut prüfen. Die
+Datenschutzerklärung setzt einen Vertrag zur Auftragsverarbeitung mit hostworld voraus, den gibt es im
+Kundenmenü. Die Texte sind ein Entwurf für den Beta-Betrieb, vor dem öffentlichen Start anwaltlich prüfen
+lassen.
+
 ## Betrieb
 
+- **Health:** `https://pool.doichain.org/api/health` antwortet mit `"ok":true` (HTTP 200), sonst 503 mit
+  der Liste der Probleme; Grundlage für Monitoring und `status.sh`
 - **Status:** `bash scripts/status.sh`
 - **Logs:** `docker compose logs -f pool` (Blockfunde erscheinen als `DOICHAIN BLOCK FOUND` und `BLOCK FOUND`)
 - **Update:** `git pull && docker compose up -d --build`
 - **Sicherung:** `bash scripts/backup.sh` (hält den Pool für wenige Sekunden an), per Cron täglich:
   `0 3 * * * /opt/nerdpool/deploy/scripts/backup.sh`
-- **Monitoring in Uptime Kuma:** TCP-Monitor auf `pool.doichain.org:3333`, HTTP-Monitor auf
-  `https://pool.doichain.org/api/info` (erwartet JSON), Keyword-Monitor auf
-  `https://pool.doichain.org/api/network` gegen die Höhe des Explorers.
+- **Monitoring in Uptime Kuma:** vier Monitore, Tabelle und Anlege-Skript in
+  [monitoring/README.md](monitoring/README.md).
 - **Node-Reserven:** `BITCOIN_DBCACHE_MB` in `.env` während des Erstabgleichs auf 4000 setzen, danach wieder
   auf 1500 (`docker compose up -d` übernimmt die Änderung).
 
@@ -88,5 +100,5 @@ trotzdem eine Adresse mit Port 4333 als "secure" an, die ist nicht aktiv.
 - Test mit echten Bitaxe und NerdMinern über mehrere Tage (Version-Rolling, Vardiff, Reconnects)
 - Dashboard mit DOI-Blöcken und Onboarding (Phase 2 des Konzepts)
 - TLS-Stratum-Port, Rate-Limits je IP auf dem Stratum-Port
-- Impressum, Datenschutzerklärung, kurze Nutzungsbedingungen
-- Anwaltliche Kurzprüfung (nicht verwahrendes Modell)
+- Platzhalter im Impressum füllen, Auftragsverarbeitungsvertrag mit dem Hoster
+- Anwaltliche Kurzprüfung der Rechtstexte und des nicht verwahrenden Modells

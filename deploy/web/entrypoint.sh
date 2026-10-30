@@ -13,6 +13,15 @@ cat > /srv/ui/assets/runtime-config.js <<EOF
 window.__PUBLIC_POOL_CONFIG__ = {"API_URL":"","STRATUM_URL":"${STRATUM_URL}","SECURE_STRATUM_URL":"","STRATUM_V2_URL":"","PPLNS_STRATUM_URL":"","PPLNS_SECURE_STRATUM_URL":"","PPLNS_STRATUM_V2_URL":"","PPLNS_DATUM_URL":""};
 EOF
 
+# Domain in die Rechtstexte eintragen (Kopie, damit ein Bind-Mount der Vorlagen schreibgeschützt bleiben kann)
+if [ -d /srv/legal-src ]; then
+    mkdir -p /srv/ui/legal
+    cp /srv/legal-src/* /srv/ui/legal/
+fi
+for f in /srv/ui/legal/*.html; do
+    [ -f "$f" ] && sed -i "s|{{POOL_DOMAIN}}|${POOL_DOMAIN}|g" "$f"
+done
+
 if [ -n "${ACME_EMAIL:-}" ]; then
     email_line="    email ${ACME_EMAIL}"
 else

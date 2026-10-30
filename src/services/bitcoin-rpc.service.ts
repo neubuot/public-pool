@@ -28,6 +28,15 @@ export class BitcoinRpcService implements OnModuleInit {
     ) {
     }
 
+    /** true while the node is in initial block download, false when synced, undefined before the first check */
+    public get syncing(): boolean | undefined {
+        return this.initialBlockDownload;
+    }
+
+    public get currentBlockHeight(): number {
+        return this.blockHeight;
+    }
+
     async onModuleInit() {
         const url = this.configService.get('BITCOIN_RPC_URL');
         let user = this.configService.get('BITCOIN_RPC_USER');

@@ -22,9 +22,10 @@ docker compose exec -T doichaind doichain-cli -datadir=/data -rpcuser="${DOICHAI
     | grep -E '"(initialblockdownload|verificationprogress)"' || true
 
 echo
-echo "== Pool-API"
-docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/info').then(r=>r.json()).then(j=>console.log(JSON.stringify(j))).catch(e=>console.log('nicht erreichbar: '+e.message))" 2>/dev/null
-docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/pool').then(r=>r.json()).then(j=>console.log('Bloecke: '+JSON.stringify(j.blocks||j))).catch(()=>{})" 2>/dev/null
+echo "== Pool-API (/api/health, dieselbe Sicht wie Uptime Kuma)"
+docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/health').then(r=>r.json()).then(j=>console.log(JSON.stringify(j, null, 1))).catch(e=>console.log('nicht erreichbar: '+e.message))" 2>/dev/null
+echo "== Gefundene Blöcke"
+docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/pool').then(r=>r.json()).then(j=>console.log(JSON.stringify(j.blocksFound||j))).catch(()=>{})" 2>/dev/null
 
 echo
 echo "== Letzte Pool-Meldungen"
