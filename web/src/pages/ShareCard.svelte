@@ -7,6 +7,7 @@
   import { fmtCoins, fmtDate, fmtDifficulty, fmtInt, shortHash } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import { stats } from '../lib/stats.svelte';
+  import CopyButton from '../components/CopyButton.svelte';
   import StatusBox from '../components/StatusBox.svelte';
 
   interface Props { chain: string; height: string; }
@@ -90,7 +91,11 @@
         </div>
       </div>
     </div>
-    <p class="muted" style="font-size: 13px; text-align: center">{t('share.hint')}</p>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center">
+      <a class="btn primary" href={`/api/share/${chainKey.toLowerCase()}/${block.height}`} download={`nerdpool-${chainKey.toLowerCase()}-${block.height}.png`} rel="external">{t('share.download')}</a>
+      <CopyButton text={`${window.location.origin}/s/${chainKey.toLowerCase()}/${block.height}`} label={t('share.copyLink')} small={false} />
+    </div>
+    <p class="muted" style="font-size: 13px; text-align: center; max-width: 560px">{t('share.linkHint')}</p>
     <p style="font-size: 13px"><a href="/blocks">{t('share.back')}</a>{#if block.blockHash} · <a href={`/explorer/${chainKey.toLowerCase()}/block/${block.blockHash}`}>{t('blocks.explorer')}</a>{/if}</p>
   {/if}
 </main>

@@ -266,6 +266,11 @@ const de: Record<string, string> = {
     'share.notFound': 'Diesen Block hat der Pool nicht gefunden.',
     'share.back': 'Zurück zu den Blöcken',
     'share.worker': 'Worker {worker}',
+    'share.download': 'Bild herunterladen (PNG)',
+    'share.copyLink': 'Link kopieren',
+    'share.linkHint': 'Der kopierte Link zeigt in Telegram, WhatsApp und Co. eine Vorschau mit diesem Bild.',
+    'miner.telegram': 'Blockfund per Telegram: Bot @{bot} öffnen und /subscribe mit deiner BTC-Adresse schicken.',
+    'home.then3bot': 'Blockfund-Nachricht per Telegram: @{bot} öffnen und /subscribe mit deiner BTC-Adresse schicken.',
 
     'term.pause': 'Pause',
     'term.resume': 'Weiter',
@@ -527,6 +532,11 @@ const en: Record<string, string> = {
     'share.notFound': 'The pool did not find this block.',
     'share.back': 'Back to the blocks',
     'share.worker': 'Worker {worker}',
+    'share.download': 'Download image (PNG)',
+    'share.copyLink': 'Copy link',
+    'share.linkHint': 'The copied link shows a preview with this image in Telegram, WhatsApp and friends.',
+    'miner.telegram': 'Block found alerts on Telegram: open the bot @{bot} and send /subscribe with your BTC address.',
+    'home.then3bot': 'Block found alerts on Telegram: open @{bot} and send /subscribe with your BTC address.',
 
     'term.pause': 'Pause',
     'term.resume': 'Resume',

@@ -5,6 +5,7 @@ import { AddressSettingsService } from '../ORM/address-settings/address-settings
 import { BlocksService } from '../ORM/blocks/blocks.service';
 import { ChainSampleService } from '../ORM/chain-sample/chain-sample.service';
 import { ClientService } from '../ORM/client/client.service';
+import { TopSharesService } from '../ORM/top-shares/top-shares.service';
 import { BitcoinRpcService } from './bitcoin-rpc.service';
 import { DoichainRpcService } from './doichain-rpc.service';
 import { PoolEventsService } from './pool-events.service';
@@ -72,6 +73,14 @@ export interface FoundBlockSummary {
     time: string | null;
 }
 
+export interface TopShareSummary {
+    address: string;
+    worker: string;
+    userAgent: string | null;
+    difficulty: number;
+    time: number;
+}
+
 export interface PoolStats {
     hashRate: number;
     miners: number;
@@ -79,10 +88,14 @@ export interface PoolStats {
     bestDifficulty: number | null;
     bestDifficultyUserAgent: string | null;
     highScores: { updatedAt: string, bestDifficulty: number, bestDifficultyUserAgent: string }[];
+    /** best shares across all miners, newest record wins ties */
+    topShares: TopShareSummary[];
     blocksFound: { BTC: { found: number, accepted: number }, DOI: { found: number, accepted: number } };
     recentBlocks: FoundBlockSummary[];
     since: string;
     jobsActive: boolean;
+    /** Telegram bot for block notifications (TELEGRAM_BOT_USERNAME), null when none */
+    telegramBot: string | null;
 }
 
 export interface StatsSnapshot {
@@ -141,6 +154,7 @@ export class ChainStatsService implements OnModuleInit {
         private readonly chainSampleService: ChainSampleService,
         private readonly poolEventsService: PoolEventsService,
         private readonly configService: ConfigService,
+        private readonly topSharesService: TopSharesService,
     ) { }
 
     onModuleInit() {
@@ -279,6 +293,11 @@ export class ChainStatsService implements OnModuleInit {
         const userAgents = await this.clientService.getUserAgents();
         const highScores = await this.addressSettingsService.getHighScores();
         const blocks = await this.blocksService.getRecentBlocks(500);
+        const topShares = (await this.topSharesService.overall(10)).map(share => ({
+            address: share.address, worker: share.worker, userAgent: share.userAgent ?? null, difficulty: share.difficulty, time: share.time
+        }));
+        const telegramBot: string | null = this.configService.get('TELEGRAM_BOT_USERNAME') || null;
+        const hasBot = `${this.configService.get('TELEGRAM_BOT_TOKEN') ?? ''}`.length > 0;
 
         const blocksFound = { BTC: { found: 0, accepted: 0 }, DOI: { found: 0, accepted: 0 } };
         for (const block of blocks) {
@@ -303,6 +322,7 @@ export class ChainStatsService implements OnModuleInit {
             bestDifficulty: best?.bestDifficulty ?? null,
             bestDifficultyUserAgent: best?.bestDifficultyUserAgent ?? null,
             highScores,
+            topShares,
             blocksFound,
             recentBlocks: blocks.slice(0, 10).map(block => ({
                 chain: block.chain,
@@ -315,7 +335,8 @@ export class ChainStatsService implements OnModuleInit {
                 time: block.createdAt instanceof Date ? block.createdAt.toISOString() : (block.createdAt as any) ?? null
             })),
             since: this.uptime.toISOString(),
-            jobsActive: this.bitcoinRpcService.syncing === false
+            jobsActive: this.bitcoinRpcService.syncing === false,
+            telegramBot: hasBot ? (telegramBot?.replace(/^@/, '') ?? null) : null
         };
     }
 

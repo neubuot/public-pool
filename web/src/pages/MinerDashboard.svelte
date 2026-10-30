@@ -68,7 +68,14 @@
     return [{ name: t('home.hashrate'), color: '#38BDF8', area: true, data: (miner?.chart ?? []).map(p => [toMs(p.label) ?? 0, p.data] as [number, number | null]) }];
   });
   const online = $derived(miner?.workers.filter(w => w.online) ?? []);
-  const closest = $derived([...(miner?.workers ?? [])].filter(w => w.bestDifficulty > 0).sort((a, b) => b.bestDifficulty - a.bestDifficulty).slice(0, 5));
+  const closest = $derived.by(() => {
+    const recorded = (miner?.topShares ?? []).slice(0, 6).map(s => ({ key: `${s.time}-${s.difficulty}`, difficulty: s.difficulty, worker: s.worker, time: s.time as number | string }));
+    if (recorded.length > 0) {
+      return recorded;
+    }
+    return [...(miner?.workers ?? [])].filter(w => w.bestDifficulty > 0).sort((a, b) => b.bestDifficulty - a.bestDifficulty).slice(0, 5)
+      .map(w => ({ key: w.sessionId, difficulty: w.bestDifficulty, worker: w.name, time: w.lastSeen as number | string }));
+  });
   const doiTarget = $derived(snapshot?.doichain.difficulty ?? null);
   const btcTarget = $derived(snapshot?.bitcoin.difficulty ?? null);
   const best = $derived(miner?.bestDifficulty ?? 0);
@@ -159,8 +166,8 @@
         <div class="label" style="margin-top: 4px">{t('miner.closest')}</div>
         {#if closest.length === 0}<p class="muted" style="font-size: 13px">{t('pool.noShares')}</p>{/if}
         <ol class="mono" style="list-style: none; margin: 0; padding: 0; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px">
-          {#each closest as worker (worker.sessionId)}
-            <li style="display: flex; gap: 10px"><span class="doi" style="width: 72px; flex: none">{fmtDifficulty(worker.bestDifficulty)}</span><span style="color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{worker.name}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(worker.lastSeen)}</span></li>
+          {#each closest as share (share.key)}
+            <li style="display: flex; gap: 10px"><span class="doi" style="width: 72px; flex: none">{fmtDifficulty(share.difficulty)}</span><span style="color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{share.worker}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(share.time)}</span></li>
           {/each}
         </ol>
       </section>
@@ -178,6 +185,11 @@
         <div><div class="label">{t('miner.sharesLabel')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtInt(miner.shares)}</div></div>
         <div><div class="label">{t('miner.targetDoi')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtDifficulty(doiTarget)}</div></div>
         <div><div class="label">{t('miner.targetBtc')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtDifficulty(btcTarget)}</div></div>
+        {#if snapshot?.pool.telegramBot}
+          <div style="flex: 1 1 100%; font-size: 13px; color: var(--text-2)">
+            <a href={`https://t.me/${snapshot.pool.telegramBot}`} target="_blank" rel="noopener noreferrer" style="color: var(--accent)">{t('miner.telegram', { bot: snapshot.pool.telegramBot })}</a>
+          </div>
+        {/if}
       </section>
     </div>
   {/if}

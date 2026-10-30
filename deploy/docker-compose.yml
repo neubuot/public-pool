@@ -110,6 +110,11 @@ services:
       - POOL_IDENTIFIER=${POOL_IDENTIFIER:-NerdPool}
       - DEV_FEE_ADDRESS=${DEV_FEE_ADDRESS:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-}
+      - TELEGRAM_ANNOUNCE_CHAT_ID=${TELEGRAM_ANNOUNCE_CHAT_ID:-}
+      # öffentliche Adresse für Links in Nachrichten und Teilen-Seiten, Client-IPs aus X-Forwarded-For von Caddy
+      - POOL_PUBLIC_URL=https://${POOL_DOMAIN:?POOL_DOMAIN in .env setzen}
+      - TRUST_PROXY=true
     ports:
       # Stratum nach außen, die API (3334) bleibt im Docker-Netz und wird von Caddy unter /api ausgeliefert
       - "${STRATUM_PORT:-3333}:3333"

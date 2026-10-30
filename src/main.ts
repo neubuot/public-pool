@@ -7,6 +7,7 @@ import { readFileSync } from 'fs';
 import * as ecc from 'tiny-secp256k1';
 
 import { AppModule } from './app.module';
+import { RateLimiter, registerRateLimits } from './utils/rate-limit';
 
 async function bootstrap() {
 
@@ -27,8 +28,19 @@ async function bootstrap() {
     };
   }
 
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(options));
+  // behind the Caddy reverse proxy (TRUST_PROXY=true) the client address comes from X-Forwarded-For
+  const trustProxy = process.env.TRUST_PROXY?.toLowerCase() === 'true';
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({ ...options, trustProxy }));
   app.setGlobalPrefix('api')
+
+  // public, unauthenticated endpoints that cost node or mempool.space calls: per client address and minute
+  registerRateLimits(app.getHttpAdapter().getInstance(), [
+    { prefix: '/api/explorer/', limiter: new RateLimiter(90, 1.5), expensive: [{ contains: '/address/', cost: 6 }, { contains: '/btc/', cost: 2 }] },
+    { prefix: '/api/share/', limiter: new RateLimiter(30, 0.5) },
+    { prefix: '/api/s/', limiter: new RateLimiter(30, 0.5) },
+    { prefix: '/api/validate/', limiter: new RateLimiter(60, 1) },
+    { prefix: '/api/miner/', limiter: new RateLimiter(120, 2) },
+  ]);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

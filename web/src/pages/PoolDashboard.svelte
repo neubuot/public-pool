@@ -124,13 +124,19 @@
           </div>
         {/each}
         <div class="label" style="margin-top: 6px">{t('pool.bestShares')}</div>
-        {#if snapshot.pool.highScores.length === 0}
+        {#if snapshot.pool.topShares.length === 0 && snapshot.pool.highScores.length === 0}
           <p class="muted" style="font-size: 13px">{t('pool.noShares')}</p>
         {/if}
         <ol class="mono" style="list-style: none; margin: 0; padding: 0; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px">
-          {#each snapshot.pool.highScores.slice(0, 6) as score, i (i)}
-            <li style="display: flex; gap: 10px"><span class="doi" style="width: 72px; flex: none">{fmtDifficulty(score.bestDifficulty)}</span><span style="color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1">{score.bestDifficultyUserAgent || '?'}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(score.updatedAt)}</span></li>
-          {/each}
+          {#if snapshot.pool.topShares.length > 0}
+            {#each snapshot.pool.topShares.slice(0, 6) as share, i (i)}
+              <li style="display: flex; gap: 10px"><span class="doi" style="width: 72px; flex: none">{fmtDifficulty(share.difficulty)}</span><span style="color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1">{#if share.address}<a href={`/d/${share.address}`} style="color: inherit">{share.worker}</a>{:else}{share.worker}{/if}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(share.time)}</span></li>
+            {/each}
+          {:else}
+            {#each snapshot.pool.highScores.slice(0, 6) as score, i (i)}
+              <li style="display: flex; gap: 10px"><span class="doi" style="width: 72px; flex: none">{fmtDifficulty(score.bestDifficulty)}</span><span style="color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1">{score.bestDifficultyUserAgent || '?'}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(score.updatedAt)}</span></li>
+            {/each}
+          {/if}
         </ol>
       </section>
 

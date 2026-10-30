@@ -4,6 +4,7 @@ import { AddressSettingsService } from '../../ORM/address-settings/address-setti
 import { BlocksService } from '../../ORM/blocks/blocks.service';
 import { ClientStatisticsService } from '../../ORM/client-statistics/client-statistics.service';
 import { ClientService } from '../../ORM/client/client.service';
+import { TopSharesService } from '../../ORM/top-shares/top-shares.service';
 import { ChainStatsService } from '../../services/chain-stats.service';
 
 const ADDRESS_RE = /^[A-Za-z0-9]{20,90}$/;
@@ -19,6 +20,7 @@ export class MinerController {
         private readonly addressSettingsService: AddressSettingsService,
         private readonly blocksService: BlocksService,
         private readonly chainStatsService: ChainStatsService,
+        private readonly topSharesService: TopSharesService,
     ) { }
 
     @Get(':address')
@@ -27,11 +29,12 @@ export class MinerController {
             throw new BadRequestException('Keine Adresse');
         }
         const now = Date.now();
-        const [clients, settings, blocks, chart] = await Promise.all([
+        const [clients, settings, blocks, chart, topShares] = await Promise.all([
             this.clientService.getByAddress(address),
             this.addressSettingsService.getSettings(address, false),
             this.blocksService.getRecentBlocksByAddress(address, 50),
             this.clientStatisticsService.getChartDataForAddress(address),
+            this.topSharesService.forAddress(address, 10),
         ]);
 
         const workers = clients.map(client => {
@@ -60,9 +63,10 @@ export class MinerController {
             hashRate,
             workersOnline: workers.filter(w => w.online).length,
             workersCount: workers.length,
-            bestDifficulty: settings?.bestDifficulty ?? workers.reduce((acc, w) => Math.max(acc, w.bestDifficulty), 0),
-            bestDifficultyUserAgent: settings?.bestDifficultyUserAgent ?? null,
+            bestDifficulty: Math.max(settings?.bestDifficulty ?? 0, topShares[0]?.difficulty ?? 0, ...workers.map(w => w.bestDifficulty)),
+            bestDifficultyUserAgent: settings?.bestDifficultyUserAgent ?? topShares[0]?.userAgent ?? null,
             shares: settings?.shares ?? 0,
+            topShares: topShares.map(share => ({ worker: share.worker, userAgent: share.userAgent ?? null, difficulty: share.difficulty, time: share.time })),
             workers,
             blocks: blocks.map(block => ({
                 chain: block.chain,

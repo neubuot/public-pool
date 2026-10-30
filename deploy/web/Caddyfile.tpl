@@ -16,6 +16,12 @@
         reverse_proxy pool:3334
     }
 
+    # Teilen-Seite eines gefundenen Blocks mit Open-Graph-Vorschau (Chats zeigen das Bild), vom Pool gerendert
+    handle /s/* {
+        rewrite * /api{uri}
+        reverse_proxy pool:3334
+    }
+
     # Rechtstexte (statische Seiten aus web/legal, per Volume ohne Neubau änderbar)
     handle /impressum {
         rewrite * /legal/impressum.html

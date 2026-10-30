@@ -57,10 +57,44 @@ export class TelegramService implements OnModuleInit {
             return;
         }
 
+        const text = `⛏️ Bitcoin block found! Height ${height}, result: ${message}\n${this.publicUrl()}/explorer/btc/block/${block.getId()}`;
         const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
-        await Promise.all(subscribers.map(subscriber => {
-            return this.sendMessage(subscriber.telegramChatId, `Block Found! Result: ${message}, Height: ${height}`);
-        }));
+        await Promise.all(subscribers.map(subscriber => this.sendMessage(subscriber.telegramChatId, text)));
+        await this.announce(text);
+    }
+
+    /** Merge mined Doichain block: the miner's subscribers (by Bitcoin address) and the announcement chat. */
+    public async notifyDoichainBlockFound(address: string, worker: string, height: number, hash: string, accepted: boolean, message: string) {
+        if (this.bot == null) {
+            return;
+        }
+        const base = this.publicUrl();
+        const text = accepted
+            ? `⛏️ Doichain block found! Height ${height}, worker ${worker}\n${base}/explorer/doi/block/${hash}\nShare card: ${base}/s/doi/${height}`
+            : `Doichain block ${height} from worker ${worker} was rejected: ${message}`;
+        const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
+        await Promise.all(subscribers.map(subscriber => this.sendMessage(subscriber.telegramChatId, text)));
+        if (accepted) {
+            await this.announce(text);
+        }
+    }
+
+    /** Optional pool wide announcement chat or channel (TELEGRAM_ANNOUNCE_CHAT_ID, the bot must be a member). */
+    private async announce(text: string) {
+        const chatId = this.configService.get('TELEGRAM_ANNOUNCE_CHAT_ID');
+        if (chatId == null || `${chatId}`.length === 0) {
+            return;
+        }
+        try {
+            await this.sendMessage(chatId, text);
+        } catch (e) {
+            console.error('Telegram announcement failed:', e?.response?.data?.description ?? e?.message ?? e);
+        }
+    }
+
+    private publicUrl(): string {
+        const configured: string | null = this.configService.get('POOL_PUBLIC_URL');
+        return (configured != null && configured.length > 0 ? configured : 'https://pool.doilabs.org').replace(/\/+$/, '');
     }
 
     private async pollUpdates(): Promise<boolean> {
@@ -104,8 +138,10 @@ export class TelegramService implements OnModuleInit {
             return;
         }
 
-        if (msg.text.startsWith('/start')) {
-            await this.sendMessage(msg.chat.id, 'Welcome to the public-pool bot. /subscribe <address> to get notified.');
+        if (msg.text.startsWith('/start') || msg.text.startsWith('/help')) {
+            await this.sendMessage(msg.chat.id,
+                'Welcome to the NerdPool bot. Send /subscribe <your BTC address> to get a message whenever one of your miners '
+                + 'finds a Bitcoin or Doichain block. The address is the one you use as stratum user name.');
             return;
         }
 

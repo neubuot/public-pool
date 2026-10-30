@@ -30,6 +30,7 @@ import { StratumV1ClientStatistics } from './StratumV1ClientStatistics';
 import { ExternalSharesService } from '../services/external-shares.service';
 import { DoichainRpcService } from '../services/doichain-rpc.service';
 import { PoolEventsService } from '../services/pool-events.service';
+import { TopSharesService } from '../ORM/top-shares/top-shares.service';
 import { hashMeetsTarget } from './auxpow';
 
 const TRUE_DIFF_ONE = 2.695953529101131e67;
@@ -83,7 +84,8 @@ export class StratumV1Client {
         private readonly addressSettingsService: AddressSettingsService,
         private readonly externalSharesService: ExternalSharesService,
         private readonly doichainRpcService?: DoichainRpcService,
-        private readonly poolEventsService?: PoolEventsService
+        private readonly poolEventsService?: PoolEventsService,
+        private readonly topSharesService?: TopSharesService
     ) {
 
         this.socket.on('data', (data: Buffer) => {
@@ -699,6 +701,20 @@ export class StratumV1Client {
                 this.entity.bestDifficulty = submissionDifficulty;
                 await this.addressSettingsService.updateBestDifficultyIfHigher(this.clientAuthorization.address, submissionDifficulty, this.entity.userAgent);
             }
+            if (this.topSharesService != null) {
+                try {
+                    await this.topSharesService.maybeRecord({
+                        address: this.clientAuthorization.address,
+                        worker: this.clientAuthorization.worker,
+                        sessionId: this.extraNonceAndSessionId,
+                        userAgent: this.entity.userAgent ?? null,
+                        difficulty: submissionDifficulty,
+                        time: Date.now()
+                    });
+                } catch (e) {
+                    console.error('Top share record failed', e?.message ?? e);
+                }
+            }
 
 
             const externalShareSubmissionEnabled: boolean = this.configService.get('EXTERNAL_SHARE_SUBMISSION_ENABLED')?.toLowerCase() == 'true';
@@ -879,6 +895,8 @@ export class StratumV1Client {
             if (!result.accepted) {
                 console.error(`Doichain rejected the AuxPoW for aux block ${job.auxBlock.hash}: ${result.message}`);
             }
+            await this.notificationService.notifyDoichainBlockFound(
+                this.clientAuthorization.address, this.clientAuthorization.worker, job.auxBlock.height, job.auxBlock.hash, result.accepted, result.message);
         } catch (e) {
             console.error('AuxPoW submission failed', e);
         } finally {

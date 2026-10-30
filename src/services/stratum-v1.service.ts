@@ -13,6 +13,7 @@ import { DoichainRpcService } from './doichain-rpc.service';
 import { ExternalSharesService } from './external-shares.service';
 import { NotificationService } from './notification.service';
 import { PoolEventsService } from './pool-events.service';
+import { TopSharesService } from '../ORM/top-shares/top-shares.service';
 import { StratumV1JobsService } from './stratum-v1-jobs.service';
 
 interface StratumListenerState {
@@ -49,7 +50,8 @@ export class StratumV1Service implements OnModuleInit {
         private readonly addressSettingsService: AddressSettingsService,
         private readonly externalSharesService: ExternalSharesService,
         private readonly doichainRpcService?: DoichainRpcService,
-        private readonly poolEventsService?: PoolEventsService
+        private readonly poolEventsService?: PoolEventsService,
+        private readonly topSharesService?: TopSharesService
     ) {
 
     }
@@ -101,7 +103,8 @@ export class StratumV1Service implements OnModuleInit {
                 this.addressSettingsService,
                 this.externalSharesService,
                 this.doichainRpcService,
-                this.poolEventsService
+                this.poolEventsService,
+                this.topSharesService
             );
 
 

@@ -36,6 +36,9 @@ import { StatsController } from './controllers/stats/stats.controller';
 import { ExplorerController } from './controllers/explorer/explorer.controller';
 import { MinerController } from './controllers/miner/miner.controller';
 import { ValidateController } from './controllers/validate/validate.controller';
+import { TopSharesModule } from './ORM/top-shares/top-shares.module';
+import { ShareImageService } from './services/share-image.service';
+import { ShareController } from './controllers/share/share.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -45,7 +48,8 @@ const ORMModules = [
     BlocksModule,
     RpcBlocksModule,
     ExternalSharesModule,
-    ChainSampleModule
+    ChainSampleModule,
+    TopSharesModule
 ]
 
 @Module({
@@ -74,12 +78,14 @@ const ORMModules = [
         StatsController,
         ExplorerController,
         MinerController,
-        ValidateController
+        ValidateController,
+        ShareController
     ],
     providers: [
         PoolEventsService,
         ChainStatsService,
         ExplorerService,
+        ShareImageService,
         DiscordService,
         AppService,
         StratumV1Service,

@@ -19,8 +19,9 @@ WORKDIR /build
 
 COPY . .
 
-# Build Public Pool using NPM
-RUN npm i && npm run build
+# Build the pool. .npmrc omits optional packages, but the share card rasteriser (@resvg/resvg-js) ships its
+# Linux binary as an optional package, so they are included here.
+RUN npm i --include=optional && npm run build
 
 ############################
 # Docker final environment #

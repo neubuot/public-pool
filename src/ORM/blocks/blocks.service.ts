@@ -54,6 +54,18 @@ export class BlocksService {
         });
     }
 
+    public async findBlock(chain: string, height: number) {
+        return await this.blocksRepository.findOne({ where: { chain, height }, order: { id: 'DESC' } });
+    }
+
+    /** Blocks the node accepted (result empty, SUCCESS! or accepted) for one chain. */
+    public async countAccepted(chain: string): Promise<number> {
+        return await this.blocksRepository.createQueryBuilder('block')
+            .where('block.chain = :chain', { chain })
+            .andWhere("(block.result IS NULL OR LOWER(block.result) IN ('success!', 'accepted', 'null'))")
+            .getCount();
+    }
+
     /** Newest blocks first, with the time they were found (for the dashboard and the explorer). */
     public async getRecentBlocks(limit: number) {
         return await this.blocksRepository.find({

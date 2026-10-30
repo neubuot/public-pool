@@ -56,6 +56,14 @@ export interface FoundBlock {
     time: string | null;
 }
 
+export interface TopShare {
+    address?: string;
+    worker: string;
+    userAgent: string | null;
+    difficulty: number;
+    time: number;
+}
+
 export interface PoolStats {
     hashRate: number;
     miners: number;
@@ -63,10 +71,12 @@ export interface PoolStats {
     bestDifficulty: number | null;
     bestDifficultyUserAgent: string | null;
     highScores: { updatedAt: string, bestDifficulty: number, bestDifficultyUserAgent: string }[];
+    topShares: TopShare[];
     blocksFound: { BTC: { found: number, accepted: number }, DOI: { found: number, accepted: number } };
     recentBlocks: FoundBlock[];
     since: string;
     jobsActive: boolean;
+    telegramBot: string | null;
 }
 
 export interface StatsSnapshot {
@@ -136,6 +146,7 @@ export interface MinerInfo {
     bestDifficulty: number;
     bestDifficultyUserAgent: string | null;
     shares: number;
+    topShares: TopShare[];
     workers: MinerWorker[];
     blocks: { chain: string, height: number, blockHash: string | null, worker: string, result: string | null, accepted: boolean, time: string }[];
     odds: { bitcoin: ChainOdds, doichain: ChainOdds };

@@ -29,7 +29,7 @@ Pool mit `VITE_API_PROXY=https://pool.doilabs.org npm run dev` anbinden. Die Lau
 | `/blocks` | Alle vom Pool gefundenen Blöcke |
 | `/explorer` | Suche (Höhe, Hash, Txid, Adresse) und neueste Blöcke beider Ketten |
 | `/explorer/<doi|btc>/block/<id>`, `/tx/<txid>`, `/address/<adresse>` | Details |
-| `/share/<doi|btc>/<höhe>` | Teilen-Karte 1200 × 630 |
+| `/share/<doi|btc>/<höhe>` | Teilen-Karte 1200 × 630, mit PNG-Download (`/api/share/...`) und Link `/s/<doi|btc>/<höhe>` mit Vorschau in Chats |
 
 Benutzte API-Endpunkte: `/api/stats`, `/api/stats/history`, `/api/stats/events` (Server-sent events), `/api/miner/:address`,
 `/api/validate/{btc,doi}/:address`, `/api/explorer/*`, `/api/info`.

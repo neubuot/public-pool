@@ -14,9 +14,12 @@ const RANGES: Record<string, { sinceMs: number, bucketMs: number }> = {
 };
 
 const ADDRESS_RE = /^[A-Za-z0-9]{20,90}$/;
+const MAX_STREAMS_PER_IP = 6;
 
 @Controller('stats')
 export class StatsController {
+
+    private readonly openStreams = new Map<string, number>();
 
     constructor(
         private readonly chainStatsService: ChainStatsService,
@@ -58,6 +61,15 @@ export class StatsController {
     public events(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Query('address') address?: string) {
         const filterAddress = address != null && ADDRESS_RE.test(address) ? address : null;
 
+        // a handful of open streams per client address is plenty (several tabs), more looks like abuse
+        const ip = request.ip;
+        const open = this.openStreams.get(ip) ?? 0;
+        if (open >= MAX_STREAMS_PER_IP) {
+            reply.status(429).send({ statusCode: 429, message: 'Zu viele offene Ereignisströme von dieser Adresse.' });
+            return;
+        }
+        this.openStreams.set(ip, open + 1);
+
         reply.hijack();
         const raw = reply.raw;
         raw.writeHead(200, {
@@ -98,9 +110,20 @@ export class StatsController {
             .subscribe(send);
 
         const ping = setInterval(() => raw.write(': ping\n\n'), 25000);
+        let closed = false;
         const close = () => {
+            if (closed) {
+                return;
+            }
+            closed = true;
             clearInterval(ping);
             subscription.unsubscribe();
+            const remaining = (this.openStreams.get(ip) ?? 1) - 1;
+            if (remaining <= 0) {
+                this.openStreams.delete(ip);
+            } else {
+                this.openStreams.set(ip, remaining);
+            }
         };
         request.raw.on('close', close);
         request.raw.on('error', close);

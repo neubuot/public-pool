@@ -79,6 +79,19 @@ und im Pool-Log.
 Dashboard neu bauen: `docker compose build web && docker compose up -d web` (Build-Kontext ist das
 Repository, Dockerfile `deploy/web/Dockerfile`, Ausschlüsse in `deploy/web/Dockerfile.dockerignore`).
 
+Weitere Stücke der API (seit 31.10.2026): `/api/share/<btc|doi>/<höhe>` liefert die Teilen-Karte eines vom
+Pool gefundenen Blocks als PNG (1200 × 630, serverseitig mit satori und resvg gezeichnet, zehn Minuten
+zwischengespeichert), `/s/<btc|doi>/<höhe>` eine kleine Seite mit Open-Graph-Angaben, damit Telegram,
+WhatsApp und Co. das Bild als Vorschau zeigen (Caddy reicht `/s/*` an den Pool weiter). Die besten Shares je
+Adresse (Tabelle `top_share_entity`, 25 je Adresse) füllen „Closest Calls“ im Miner-Dashboard und „Beste
+Shares“ auf der Pool-Seite. Explorer, Teilen-Karten, Adressprüfung und Miner-Abfragen sind je Client-Adresse
+gedrosselt (HTTP 429), Caddy setzt dafür `X-Forwarded-For`, der Pool liest sie mit `TRUST_PROXY=true`.
+
+Telegram: Miner abonnieren Blockfunde beim Bot mit `/subscribe <BTC-Adresse>`, das Dashboard zeigt den Bot
+aus `TELEGRAM_BOT_USERNAME`. Gemeldet werden Bitcoin- und Doichain-Blöcke mit Link in den Explorer und auf die
+Teilen-Seite. `TELEGRAM_ANNOUNCE_CHAT_ID` (Chat- oder Kanal-ID, Bot als Mitglied) meldet zusätzlich jeden
+angenommenen Block an alle.
+
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 
 ## Rechtstexte
