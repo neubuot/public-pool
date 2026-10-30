@@ -26,7 +26,7 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 
 ## Installation
 
-1. DNS: A-Record der Pool-Domain (z. B. `pool.doichain.org`) auf die Server-IP.
+1. DNS: A-Record der Pool-Domain (z. B. `pool.doilabs.org`) auf die Server-IP.
 2. Als root auf dem Server:
 
    ```bash
@@ -58,13 +58,13 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 
 | Feld | Wert |
 | --- | --- |
-| Stratum-URL | `stratum+tcp://pool.doichain.org` |
+| Stratum-URL | `stratum+tcp://pool.doilabs.org` |
 | Port | `3333` |
 | Benutzername | `<BTC-Adresse>.<Gerätename>` |
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
 
 Ohne DOI-Adresse im Passwort geht die DOI-Belohnung an `DOICHAIN_DEFAULT_ADDRESS`. Das Dashboard unter
-`https://pool.doichain.org` zeigt Hashrate, Shares und Best Difficulty je Adresse (public-pool-ui kennt
+`https://pool.doilabs.org` zeigt Hashrate, Shares und Best Difficulty je Adresse (public-pool-ui kennt
 noch keine DOI-Blöcke, die stehen in der API unter `/api/pool` mit `chain = DOI` und im Pool-Log).
 
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`. Das Übergangs-Dashboard zeigt
@@ -81,7 +81,7 @@ hostworld voraus, den gibt es im Kundenmenü. Die Texte sind ein Entwurf für de
 
 ## Betrieb
 
-- **Health:** `https://pool.doichain.org/api/health` antwortet mit `"ok":true` (HTTP 200), sonst 503 mit
+- **Health:** `https://pool.doilabs.org/api/health` antwortet mit `"ok":true` (HTTP 200), sonst 503 mit
   der Liste der Probleme; Grundlage für Monitoring und `status.sh`
 - **Status:** `bash scripts/status.sh`
 - **Logs:** `docker compose logs -f pool` (Blockfunde erscheinen als `DOICHAIN BLOCK FOUND` und `BLOCK FOUND`)

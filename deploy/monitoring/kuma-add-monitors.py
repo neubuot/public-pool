@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Legt die NerdPool-Monitore in Uptime Kuma an (Bibliothek uptime-kuma-api, Kuma 1.x).
 
-Umgebung: KUMA_URL, KUMA_USER, KUMA_PASSWORD, POOL_DOMAIN (Standard pool.doichain.org),
+Umgebung: KUMA_URL, KUMA_USER, KUMA_PASSWORD, POOL_DOMAIN (Standard pool.doilabs.org),
           POOL_IP (optional, für den Ping-Monitor), KUMA_NOTIFICATION_IDS (optional, z. B. "1,3")
 """
 import os
@@ -20,7 +20,7 @@ def main() -> int:
     if not (url and user and password):
         sys.exit("KUMA_URL, KUMA_USER und KUMA_PASSWORD setzen")
 
-    domain = os.environ.get("POOL_DOMAIN", "pool.doichain.org")
+    domain = os.environ.get("POOL_DOMAIN", "pool.doilabs.org")
     pool_ip = os.environ.get("POOL_IP")
     notification_ids = [int(x) for x in os.environ.get("KUMA_NOTIFICATION_IDS", "").split(",") if x.strip()]
 

@@ -5,9 +5,9 @@ Vier Monitore reichen für die Beta. Sie lassen sich in fünf Minuten von Hand a
 
 | Name | Typ | Ziel | Intervall | Einstellungen |
 | --- | --- | --- | --- | --- |
-| NerdPool Stratum | TCP Port | `pool.doichain.org`, Port 3333 | 60 s | Wiederholungen 2, damit ein Neustart des Pools nicht alarmiert |
-| NerdPool Health | HTTP(s) Keyword | `https://pool.doichain.org/api/health` | 60 s | Schlüsselwort `"ok":true`, Zertifikatsablauf-Warnung einschalten |
-| NerdPool Dashboard | HTTP(s) | `https://pool.doichain.org/` | 300 s | erwartet 200 |
+| NerdPool Stratum | TCP Port | `pool.doilabs.org`, Port 3333 | 60 s | Wiederholungen 2, damit ein Neustart des Pools nicht alarmiert |
+| NerdPool Health | HTTP(s) Keyword | `https://pool.doilabs.org/api/health` | 60 s | Schlüsselwort `"ok":true`, Zertifikatsablauf-Warnung einschalten |
+| NerdPool Dashboard | HTTP(s) | `https://pool.doilabs.org/` | 300 s | erwartet 200 |
 | NerdPool Host | Ping | Server-IP | 60 s | zeigt, ob Server oder nur Dienst weg ist |
 
 Der Health-Endpunkt antwortet erst mit `"ok":true`, wenn beide Nodes erreichbar sind, Bitcoin Core den
@@ -36,7 +36,7 @@ zugeordnet, die stehen in Kuma unter Einstellungen, Benachrichtigungen, in der U
 ```bash
 pip install uptime-kuma-api
 KUMA_URL=https://kuma.example.org KUMA_USER=admin KUMA_PASSWORD=... \
-POOL_DOMAIN=pool.doichain.org POOL_IP=203.0.113.10 KUMA_NOTIFICATION_IDS=1,3 \
+POOL_DOMAIN=pool.doilabs.org POOL_IP=203.0.113.10 KUMA_NOTIFICATION_IDS=1,3 \
 python3 kuma-add-monitors.py
 ```
 
