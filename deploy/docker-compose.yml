@@ -59,7 +59,9 @@ services:
       - -printtoconsole
       - -datadir=/data
       - -listen=1
-      # Doichain: P2P 8338, RPC 8339. Der Tor-Hilfsport wäre P2P+1 = 8339 und kollidiert mit RPC, daher aus.
+      # Doichain Core 31.1.6 versucht ohne explizites -bind 127.0.0.1:8339 zu binden und kollidiert mit dem
+      # RPC-Port 8339 ("Failed to listen on any port"); mit explizitem Bind auf den P2P-Port 8338 startet es.
+      - -bind=0.0.0.0:8338
       - -listenonion=0
       - -maxconnections=40
       - -rpcbind=0.0.0.0

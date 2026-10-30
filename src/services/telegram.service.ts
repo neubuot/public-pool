@@ -12,7 +12,9 @@ export class TelegramService implements OnModuleInit {
 
     private bot: AxiosInstance;
     private updateOffset = 0;
-    private pollingTimer: NodeJS.Timeout;
+    private lastErrorLog = 0;
+    /** long polling: Telegram holds the request up to this many seconds, one request in flight at a time */
+    private readonly longPollSeconds = 20;
 
     constructor(
         private readonly configService: ConfigService,
@@ -24,7 +26,7 @@ export class TelegramService implements OnModuleInit {
         }
         this.bot = axios.create({
             baseURL: `https://api.telegram.org/bot${token}/`,
-            timeout: 10000
+            timeout: (this.longPollSeconds + 10) * 1000
         });
         console.log('Telegram bot init');
 
@@ -37,10 +39,17 @@ export class TelegramService implements OnModuleInit {
             return;
         }
 
-        await this.pollUpdates();
-        this.pollingTimer = setInterval(async () => {
-            await this.pollUpdates();
-        }, 2000);
+        // Sequential long polling: overlapping getUpdates calls make Telegram answer 409 to one of them.
+        // Don't await, the loop runs for the lifetime of the process.
+        this.pollLoop();
+    }
+
+    private async pollLoop() {
+        while (true) {
+            const ok = await this.pollUpdates();
+            // back off after an error (e.g. 409 while another instance polls), otherwise poll again right away
+            await new Promise(resolve => setTimeout(resolve, ok ? 500 : 5000));
+        }
     }
 
     public async notifySubscribersBlockFound(address: string, height: number, block: Block, message: string) {
@@ -54,12 +63,12 @@ export class TelegramService implements OnModuleInit {
         }));
     }
 
-    private async pollUpdates() {
+    private async pollUpdates(): Promise<boolean> {
         try {
             const response = await this.bot.get('getUpdates', {
                 params: {
                     offset: this.updateOffset,
-                    timeout: 0
+                    timeout: this.longPollSeconds
                 }
             });
 
@@ -67,8 +76,15 @@ export class TelegramService implements OnModuleInit {
                 this.updateOffset = update.update_id + 1;
                 await this.handleMessage(update.message);
             }
+            return true;
         } catch (e) {
-            console.error('Telegram polling failed', e.message);
+            const now = Date.now();
+            if (now - this.lastErrorLog > 60000) {
+                this.lastErrorLog = now;
+                const detail = e?.response?.data?.description ?? e?.message ?? e;
+                console.error(`Telegram polling failed: ${detail}`);
+            }
+            return false;
         }
     }
 
