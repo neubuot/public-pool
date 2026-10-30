@@ -59,6 +59,8 @@ services:
       - -printtoconsole
       - -datadir=/data
       - -listen=1
+      # Doichain: P2P 8338, RPC 8339. Der Tor-Hilfsport wäre P2P+1 = 8339 und kollidiert mit RPC, daher aus.
+      - -listenonion=0
       - -maxconnections=40
       - -rpcbind=0.0.0.0
       - -rpcallowip=172.16.0.0/12
