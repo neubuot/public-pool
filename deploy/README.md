@@ -75,11 +75,9 @@ trotzdem eine Adresse mit Port 4333 als "secure" an, die ist nicht aktiv.
 Impressum, Datenschutzerklärung und Nutzungsbedingungen liegen als statische Seiten in `web/legal/` und
 sind unter `/impressum`, `/datenschutz` und `/nutzungsbedingungen` erreichbar; das Dashboard verlinkt sie in
 der Fußzeile. Der Ordner ist in den Web-Container eingebunden, Änderungen brauchen nur
-`docker compose restart web`. Vor dem Start ausfüllen (Platzhalter in eckigen Klammern im Impressum):
-HRB-Nummer, Vorsitz des Aufsichtsrats, Telefonnummer; Registergericht Landshut prüfen. Die
-Datenschutzerklärung setzt einen Vertrag zur Auftragsverarbeitung mit hostworld voraus, den gibt es im
-Kundenmenü. Die Texte sind ein Entwurf für den Beta-Betrieb, vor dem öffentlichen Start anwaltlich prüfen
-lassen.
+`docker compose restart web`. Die Datenschutzerklärung setzt einen Vertrag zur Auftragsverarbeitung mit
+hostworld voraus, den gibt es im Kundenmenü. Die Texte sind ein Entwurf für den Beta-Betrieb, vor dem
+öffentlichen Start anwaltlich prüfen lassen.
 
 ## Betrieb
 
@@ -100,5 +98,5 @@ lassen.
 - Test mit echten Bitaxe und NerdMinern über mehrere Tage (Version-Rolling, Vardiff, Reconnects)
 - Dashboard mit DOI-Blöcken und Onboarding (Phase 2 des Konzepts)
 - TLS-Stratum-Port, Rate-Limits je IP auf dem Stratum-Port
-- Platzhalter im Impressum füllen, Auftragsverarbeitungsvertrag mit dem Hoster
+- Auftragsverarbeitungsvertrag mit dem Hoster
 - Anwaltliche Kurzprüfung der Rechtstexte und des nicht verwahrenden Modells
