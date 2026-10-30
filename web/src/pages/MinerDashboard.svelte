@@ -93,6 +93,12 @@
   {:else if miner == null}
     <div style="margin-top: 20px"><StatusBox loading={loading} error={error} onretry={load} /></div>
   {:else}
+    {#if snapshot != null && !snapshot.pool.jobsActive}
+      <div class="card" style="margin-top: 20px; border-color: var(--warn-border); display: flex; gap: 12px; align-items: center">
+        <span class="dot warn pulse"></span>
+        <span style="font-size: 13px; color: var(--text-2)">{t('pool.noJobs', { percent: Math.round((snapshot.bitcoin.verificationProgress ?? 0) * 100) })}</span>
+      </div>
+    {/if}
     <div class="grid12" style="margin-top: 20px">
 
       <section class="card span8" aria-label={t('miner.hashrate24')}>

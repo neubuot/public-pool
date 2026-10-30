@@ -82,6 +82,7 @@ const de: Record<string, string> = {
     'home.waitingHint': 'Diese Karte prüft alle zehn Sekunden, ob dein Gerät beim Pool angekommen ist.',
     'home.waitingNoAddress': 'Sobald eine gültige BTC-Adresse eingetragen ist, wartet diese Karte auf dein Gerät.',
     'home.connected': '{worker} verbunden',
+    'home.connectedWaiting': 'verbunden, wartet auf den Bitcoin-Abgleich ({percent} %). Danach kommen Jobs und Shares.',
     'home.hashrate': 'Hashrate',
     'home.lastShare': 'Zuletzt gesehen',
     'home.doiChance': 'DOI-Chance im Jahr',
@@ -147,6 +148,7 @@ const de: Record<string, string> = {
     'pool.adjustment': 'Anpassung in {blocks} Blöcken, etwa {when}',
     'pool.adjustmentChange': 'voraussichtlich {change}',
     'pool.blockEvery': 'Block alle {duration}',
+    'pool.noJobs': 'Der Pool gibt noch keine Arbeit aus: Bitcoin Core ist im Erstabgleich ({percent} %). Verbundene Geräte bleiben verbunden und bekommen Jobs, sobald der Abgleich fertig ist. Doichain läuft mit.',
 
     'chain.height': 'Höhe',
     'chain.difficulty': 'Difficulty',
@@ -341,6 +343,7 @@ const en: Record<string, string> = {
     'home.waitingHint': 'This card checks every ten seconds whether your device has reached the pool.',
     'home.waitingNoAddress': 'Once a valid BTC address is entered, this card waits for your device.',
     'home.connected': '{worker} connected',
+    'home.connectedWaiting': 'connected, waiting for the Bitcoin sync ({percent} %). Jobs and shares follow after it.',
     'home.hashrate': 'Hash rate',
     'home.lastShare': 'Last seen',
     'home.doiChance': 'DOI chance per year',
@@ -406,6 +409,7 @@ const en: Record<string, string> = {
     'pool.adjustment': 'Adjustment in {blocks} blocks, about {when}',
     'pool.adjustmentChange': 'expected {change}',
     'pool.blockEvery': 'Block every {duration}',
+    'pool.noJobs': 'The pool hands out no work yet: Bitcoin Core is in its initial sync ({percent} %). Connected devices stay connected and get jobs as soon as the sync is done. Doichain runs alongside.',
 
     'chain.height': 'Height',
     'chain.difficulty': 'Difficulty',

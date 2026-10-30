@@ -194,6 +194,9 @@
             <div>
               <div style="font-weight: 600">{t('home.connected', { worker: firstWorker.name })}</div>
               <div class="muted" style="font-size: 12.5px">{firstWorker.userAgent ?? ''}</div>
+              {#if stats.data != null && !stats.data.pool.jobsActive}
+                <div class="warn" style="font-size: 12.5px; margin-top: 4px">{t('home.connectedWaiting', { percent: Math.round((stats.data.bitcoin.verificationProgress ?? 0) * 100) })}</div>
+              {/if}
             </div>
           </div>
           <div class="tiles">

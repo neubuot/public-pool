@@ -66,6 +66,8 @@ export class StratumV1Client {
     private buffer: string = '';
     private connectionClosed = false;
     private lastSentMiningJobTimestamp: number = null;
+    /** unix time in milliseconds of the last accepted share */
+    private lastShareAt: number | null = null;
 
     private miningSubmissionHashes = new Set<string>()
 
@@ -424,6 +426,10 @@ export class StratumV1Client {
                 doiAddress: this.doiAddress
             }
         });
+        // Register the client right away (not only with its first share) so the dashboard shows devices that
+        // are connected and waiting, e.g. while Bitcoin Core still syncs and no jobs go out. Not awaited: the
+        // insert is batched and must not delay the first job.
+        void this.ensureClientEntity().catch(e => console.error('Could not register client', e));
 
         this.stratumSubscription =this.stratumV1JobsService.newMiningJob$.subscribe(async (jobTemplate) => {
             try {
@@ -452,6 +458,7 @@ export class StratumV1Client {
         this.backgroundWork.push(
             setInterval(async () => {
                 await this.checkDifficulty();
+                await this.idleHeartbeat();
             }, 60 * 1000)
         );
 
@@ -622,6 +629,7 @@ export class StratumV1Client {
             if (!success) {
                 return false;
             }
+            this.lastShareAt = Date.now();
             this.poolEventsService?.emit({
                 type: 'share',
                 address: this.clientAuthorization.address,
@@ -725,7 +733,33 @@ export class StratumV1Client {
 
     }
 
+    /**
+     * Keeps a connected client visible while it sends no shares (no jobs while Bitcoin Core syncs, idle rig).
+     * The hash rate counts as zero once no share arrived for ten minutes.
+     */
+    private async idleHeartbeat() {
+        if (this.entity == null || this.connectionClosed) {
+            return;
+        }
+        const now = new Date();
+        if (this.entity.updatedAt != null && now.getTime() - this.entity.updatedAt.getTime() < 60 * 1000) {
+            return;
+        }
+        const recentShare = this.lastShareAt != null && now.getTime() - this.lastShareAt < 10 * 60 * 1000;
+        try {
+            await this.clientService.heartbeat(this.entity.address, this.entity.clientName, this.entity.sessionId, recentShare ? this.hashRate : 0, now);
+            this.entity.updatedAt = now;
+        } catch (e) {
+            console.error('Idle heartbeat failed', e);
+        }
+    }
+
     private async checkDifficulty() {
+        // No job handed out yet (e.g. Bitcoin Core still syncing): nothing to measure. Without this guard the
+        // difficulty would be lowered every minute for lack of shares and the first jobs would drown the pool.
+        if (this.lastSentMiningJobTimestamp == null) {
+            return;
+        }
         const targetDiff = this.statistics.getSuggestedDifficulty(this.sessionDifficulty);
         if (targetDiff == null) {
             return;
