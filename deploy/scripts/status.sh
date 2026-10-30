@@ -23,9 +23,9 @@ docker compose exec -T doichaind doichain-cli -datadir=/data -rpcuser="${DOICHAI
 
 echo
 echo "== Pool-API (/api/health, dieselbe Sicht wie Uptime Kuma)"
-docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/health').then(r=>r.json()).then(j=>console.log(JSON.stringify(j, null, 1))).catch(e=>console.log('nicht erreichbar: '+e.message))" 2>/dev/null
+timeout 30 docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/health', {signal: AbortSignal.timeout(20000)}).then(r=>r.json()).then(j=>console.log(JSON.stringify(j, null, 1))).catch(e=>console.log('nicht erreichbar: '+e.message))" 2>/dev/null
 echo "== Gefundene Blöcke"
-docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/pool').then(r=>r.json()).then(j=>console.log(JSON.stringify(j.blocksFound||j))).catch(()=>{})" 2>/dev/null
+timeout 30 docker compose exec -T pool node -e "fetch('http://127.0.0.1:3334/api/pool', {signal: AbortSignal.timeout(20000)}).then(r=>r.json()).then(j=>console.log(JSON.stringify(j.blocksFound||j))).catch(e=>console.log('nicht erreichbar: '+e.message))" 2>/dev/null
 
 echo
 echo "== Letzte Pool-Meldungen"

@@ -196,7 +196,8 @@ export class AppController {
     const userAgents = await this.clientService.getUserAgents();
     const totalHashRate = userAgents.reduce((acc, userAgent) => acc + parseFloat(userAgent.totalHashRate), 0);
     const totalMiners = userAgents.reduce((acc, userAgent) => acc + parseInt(userAgent.count), 0);
-    const blockHeight = (await firstValueFrom(this.bitcoinRpcService.newBlock$)).blocks;
+    // must not block while the node is still syncing (newBlock$ emits only once synced)
+    const blockHeight = this.bitcoinRpcService.miningInfo?.blocks ?? 0;
     const blocksFound = await this.blocksService.getFoundBlocks();
 
     const data = {
@@ -215,8 +216,8 @@ export class AppController {
 
   @Get('network')
   public async network() {
-    const miningInfo = await firstValueFrom(this.bitcoinRpcService.newBlock$);
-    return miningInfo;
+    // latest known mining info; while syncing this is the node's current (partial) height
+    return this.bitcoinRpcService.miningInfo ?? await this.bitcoinRpcService.getMiningInfo();
   }
 
   @Get('info/chart')

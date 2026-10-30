@@ -33,6 +33,13 @@ export class BitcoinRpcService implements OnModuleInit {
         return this.initialBlockDownload;
     }
 
+    private lastMiningInfo: IMiningInfo | null = null;
+
+    /** latest getmininginfo answer, also while syncing (newBlock$ only emits once the node is synced) */
+    public get miningInfo(): IMiningInfo | null {
+        return this.lastMiningInfo;
+    }
+
     public get currentBlockHeight(): number {
         return this.blockHeight;
     }
@@ -137,6 +144,7 @@ export class BitcoinRpcService implements OnModuleInit {
         if (miningInfo == null) {
             return;
         }
+        this.lastMiningInfo = miningInfo;
         if (await this.isSyncing(miningInfo)) {
             return;
         }
