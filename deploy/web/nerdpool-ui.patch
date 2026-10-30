@@ -1,0 +1,124 @@
+diff --git a/src/app/components/splash/splash.component.html b/src/app/components/splash/splash.component.html
+index c020c68..bbaf302 100644
+--- a/src/app/components/splash/splash.component.html
++++ b/src/app/components/splash/splash.component.html
+@@ -11,29 +11,30 @@
+                 </div>
+ 
+                 <div class="col-12 text-center title">
+-                    <h1 class="text-900 font-normal">Public Pool</h1>
++                    <h1 class="text-900 font-normal">NerdPool</h1>
+                 </div>
+                 <div class="mb-4">
+-                    <a class="ml-4 mr-4" href="https://twitter.com/Public_Pool_BTC" target="_blank">
+-                        <i class="pi pi-twitter" style="font-size: 30pt; color: white;"></i>
+-                    </a>
+-                    <a class="ml-4 mr-4" href="https://discord.gg/pF9smpe3yE" target="_blank">
+-                        <i class="pi pi-discord" style="font-size: 30pt; color: white;"></i>
+-                    </a>
+-                    <a class="ml-4 mr-4" href="https://github.com/benjamin-wilson/public-pool" target="_blank">
++                    <a class="ml-4 mr-4" href="https://github.com/neubuot/public-pool/tree/auxpow-doichain" target="_blank"
++                        title="Source code (fork of public-pool, GPL-3.0)">
+                         <i class="pi pi-github" style="font-size: 30pt; color: white;"></i>
+                     </a>
+-
+                 </div>
+ 
+                 <div>
+-                    <code>Fully Open Source Solo Bitcoin Mining Pool</code>
++                    <code>Solo Merged Mining Pool: Bitcoin + Doichain, built for Bitaxe and NerdMiner</code>
+                     <br>
+                     <br>
+                     <div class="info mb-2 p-4 border-dashed border-1 border-round">
+                         <code>stratum+tcp://{{stratumURL}}</code>
+                         <br>
+-                        <code>username: &lt;your BTC address&gt;.&lt;worker name&gt;, password: x</code>
++                        <code>username: &lt;your BTC address&gt;.&lt;worker name&gt;</code>
++                        <br>
++                        <code>password: &lt;your DOI address&gt;</code>
++                        <br>
++                        <small class="text-500">Every share is checked against both chains at once. A Bitcoin block pays to your BTC
++                            address, a Doichain block (AuxPoW) to your DOI address, the pool holds nothing. Optional password
++                            form: <code>doi=&lt;DOI address&gt;,d=&lt;difficulty&gt;</code>. Without a DOI address the Doichain
++                            reward goes to the project address.</small>
+                         <ng-container *ngIf="sv2$ | async as sv2">
+                             <ng-container *ngIf="sv2?.poolAuthorityPublicKey">
+                                 <br>
+@@ -47,7 +48,7 @@
+                     </div>
+                     <span><b>NO FEES</b></span>
+                     <br>
+-                    <span>No second best.</span>
++                    <span>One miner, two chains. Beta.</span>
+                 </div>
+ 
+ 
+@@ -206,6 +207,7 @@
+                 <p-table [value]="blockData">
+                     <ng-template pTemplate="header">
+                         <tr>
++                            <th>Chain</th>
+                             <th>Height</th>
+                             <th>Address</th>
+                             <th>Worker</th>
+@@ -214,6 +216,7 @@
+                     </ng-template>
+                     <ng-template pTemplate="body" let-block>
+                         <tr>
++                            <td>{{ block.chain || 'BTC' }}</td>
+                             <td>{{ block.height }}</td>
+                             <td>{{ block.minerAddress }}</td>
+                             <td>{{ block.worker }}</td>
+@@ -226,23 +229,9 @@
+         </div>
+ 
+         <div class="col-12">
+-            <div class="card">
+-                <div class="grid">
+-                    <div class="col-12 md:col-2">
+-                        <h3>Donate</h3>
+-                        <p>Like the project? Consider a donation. </p>
+-                    </div>
+-                    <div class="col-12 md:col-4 text-center">
+-                        <img style="height: 200px;" src="assets/layout/images/qr-code-ln.svg"
+-                            alt="bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d">
+-                        <div>public_pool&#64;strike.me</div>
+-                    </div>
+-                    <div class="col-12 md:col-6 text-center">
+-                        <img style="height: 200px;" src="assets/layout/images/qr-code-onchain.svg"
+-                            alt="bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d">
+-                        <div>bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d</div>
+-                    </div>
+-                </div>
++            <div class="card text-center">
++                <small class="text-500">Based on <a href="https://github.com/benjamin-wilson/public-pool" target="_blank">public-pool</a>
++                    by Benjamin Wilson (GPL-3.0), extended with Doichain merged mining. Beta operation, no guarantees.</small>
+             </div>
+         </div>
+     </div>
+diff --git a/src/app/layout/app.topbar.component.html b/src/app/layout/app.topbar.component.html
+index 81ef87d..174ea4a 100644
+--- a/src/app/layout/app.topbar.component.html
++++ b/src/app/layout/app.topbar.component.html
+@@ -1,7 +1,7 @@
+ <div class="layout-topbar">
+     <a class="layout-topbar-logo" routerLink="">
+         <img src="assets/layout/images/logo.svg" alt="logo">
+-        <span>Public Pool</span>
++        <span>NerdPool Beta</span>
+     </a>
+ 
+     <button #menubutton class="p-link layout-menu-button layout-topbar-button" (click)="layoutService.onMenuToggle()">
+diff --git a/src/index.html b/src/index.html
+index 224b2f7..149da6c 100644
+--- a/src/index.html
++++ b/src/index.html
+@@ -3,7 +3,7 @@
+ 
+ <head>
+   <meta charset="utf-8">
+-  <title>Public Pool</title>
++  <title>NerdPool Beta</title>
+   <base href="/">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <link rel="icon" type="image/x-icon" href="favicon.ico">

@@ -6,12 +6,15 @@ set -eu
 STRATUM_URL=${STRATUM_URL:-$POOL_DOMAIN:3333}
 
 mkdir -p /srv/ui/assets
-# API relativ (Caddy reicht /api an den Pool weiter). Die übrigen Schlüssel leer setzen, sonst zeigt das UI
-# die eingebauten public-pool.io-Adressen. SECURE_STRATUM_URL leer -> UI zeigt <domain>:4333, der Port ist
-# in der Beta nicht aktiv (steht so im README).
+# API relativ (Caddy reicht /api an den Pool weiter). Der gebaute UI-Stand liest API_URL und STRATUM_URL;
+# die übrigen Schlüssel sind für neuere UI-Stände vorbelegt (leer = Zeile ausgeblendet), sonst zeigten
+# die die eingebauten public-pool.io-Adressen.
 cat > /srv/ui/assets/runtime-config.js <<EOF
 window.__PUBLIC_POOL_CONFIG__ = {"API_URL":"","STRATUM_URL":"${STRATUM_URL}","SECURE_STRATUM_URL":"","STRATUM_V2_URL":"","PPLNS_STRATUM_URL":"","PPLNS_SECURE_STRATUM_URL":"","PPLNS_STRATUM_V2_URL":"","PPLNS_DATUM_URL":""};
 EOF
+# Caddy liefert vorkomprimierte Kopien bevorzugt aus; eine veraltete .br/.gz würde den Platzhalter aus dem
+# Build statt dieser Datei liefern (dann fällt das UI auf public-pool.io zurück)
+rm -f /srv/ui/assets/runtime-config.js.br /srv/ui/assets/runtime-config.js.gz
 
 # Domain in die Rechtstexte eintragen (Kopie, damit ein Bind-Mount der Vorlagen schreibgeschützt bleiben kann)
 if [ -d /srv/legal-src ]; then

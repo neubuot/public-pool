@@ -64,11 +64,13 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
 
 Ohne DOI-Adresse im Passwort geht die DOI-Belohnung an `DOICHAIN_DEFAULT_ADDRESS`. Das Dashboard unter
-`https://pool.doilabs.org` zeigt Hashrate, Shares und Best Difficulty je Adresse (public-pool-ui kennt
-noch keine DOI-Blöcke, die stehen in der API unter `/api/pool` mit `chain = DOI` und im Pool-Log).
+`https://pool.doilabs.org` zeigt die Verbindungsanleitung (Benutzername und DOI-Passwort), Hashrate, Shares
+und Best Difficulty je Adresse sowie gefundene Blöcke mit Kette (BTC oder DOI). Es ist public-pool-ui am
+Commit `5f730f4` mit dem Patch `web/nerdpool-ui.patch` (Titel, Anleitung, Kettenspalte, keine
+public-pool.io-Links und -Spendenadressen); neuere UI-Stände erwarten API-Routen, die das Backend nicht hat.
+Gefundene DOI-Blöcke stehen außerdem in der API unter `/api/pool` mit `chain = DOI` und im Pool-Log.
 
-Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`. Das Übergangs-Dashboard zeigt
-trotzdem eine Adresse mit Port 4333 als "secure" an, die ist nicht aktiv.
+Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 
 ## Rechtstexte
 
