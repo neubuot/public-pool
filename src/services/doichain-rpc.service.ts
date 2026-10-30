@@ -70,7 +70,9 @@ export class DoichainRpcService implements OnModuleInit {
             auth: {
                 username: user,
                 password: pass
-            }
+            },
+            // Bitcoin-style nodes answer RPC errors with HTTP 500 and the error in the JSON body
+            validateStatus: () => true
         });
 
         try {
@@ -91,8 +93,13 @@ export class DoichainRpcService implements OnModuleInit {
             sock.events.on('connect', () => {
                 console.log('Doichain ZMQ connected');
             });
+            let lastRetryLog = 0;
             sock.events.on('connect:retry', () => {
-                console.log('Doichain ZMQ unable to connect, retrying');
+                const now = Date.now();
+                if (now - lastRetryLog > 60000) {
+                    lastRetryLog = now;
+                    console.log('Doichain ZMQ unable to connect, retrying (polling keeps working; static Doichain builds have no ZMQ)');
+                }
             });
             sock.connect(zmqHost);
             sock.subscribe('hashblock');
@@ -200,8 +207,12 @@ export class DoichainRpcService implements OnModuleInit {
             params
         });
 
+        if (response.data == null || typeof response.data !== 'object') {
+            throw new Error(`Doichain RPC ${method}: HTTP ${response.status} ${response.statusText}`);
+        }
         if (response.data.error != null) {
-            throw response.data.error;
+            const error = response.data.error;
+            throw new Error(`Doichain RPC ${method}: ${error.message ?? JSON.stringify(error)} (code ${error.code})`);
         }
 
         return response.data.result;

@@ -33,10 +33,18 @@ cd regtest
 bash setup.sh
 ```
 
-`setup.sh` baut das Doichain-Image aus dem statischen Release-Binary (Prüfsumme aus SHA256SUMS), startet
-beide Nodes, legt die Wallets `pool` an, mint 101 Bitcoin- und 1 Doichain-Block und schreibt die `.env`
-des Pools aus `pool.env.template` (nur wenn noch keine `.env` existiert). Die Adressen stehen danach in
+`setup.sh` startet beide Nodes (Docker, oder ohne Docker in WSL-Ubuntu mit den statischen Release-Binaries,
+Prüfsummen geprüft; Auswahl über `REGTEST_BACKEND=docker|wsl`, Standard: automatisch), legt die Wallets
+`pool` an, mint 101 Bitcoin- und 17 Doichain-Blöcke und schreibt die `.env` des Pools aus
+`pool.env.template` (nur wenn noch keine `.env` existiert). Die Adressen stehen danach in
 `regtest/generated.env`.
+
+Warum 17 Doichain-Blöcke: Doichain Core 31.1.6 baut in `createauxblock` bei Höhen bis 16 einen
+1-Byte-Coinbase-scriptSig (OP_1 bis OP_16 als Höhe) und lehnt den eigenen Block mit `bad-cb-length` ab.
+Ab Höhe 17 ist der Höhen-Push 2 Byte lang. Mainnet und Testnet sind davon nicht betroffen.
+
+Das statische Doichain-Binary ist ohne ZMQ gebaut; der Pool erkennt neue Doichain-Blöcke deshalb per
+Polling (`DOICHAIN_POLL_INTERVAL_MS`).
 
 Pool starten (eigenes Terminal, im Repository-Wurzelverzeichnis):
 

@@ -42,3 +42,7 @@ settings.json
 
 #https
 **.pem
+# NerdPool regtest
+/regtest/.cache/
+/regtest/generated.env
+/regtest/pool-e2e.log

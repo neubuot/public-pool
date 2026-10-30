@@ -4,8 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-btc() { docker exec nerdpool-bitcoind bitcoin-cli -regtest -rpcuser=pool -rpcpassword=pool "$@"; }
-doi() { docker exec nerdpool-doichaind doichain-cli -regtest -rpcuser=pool -rpcpassword=pool -rpcport=18445 "$@"; }
+# shellcheck disable=SC1091
+source ./backend.sh
 
 wait_rpc() {
     local name=$1
@@ -19,8 +19,8 @@ wait_rpc() {
     exit 1
 }
 
-echo "== Container starten"
-docker compose up -d --build
+echo "== Nodes starten"
+nodes_up
 
 echo "== Auf RPC warten"
 wait_rpc btc
@@ -37,8 +37,11 @@ echo "== Startblöcke"
 if [ "$(btc getblockcount)" -lt 101 ]; then
     btc -rpcwallet=pool generatetoaddress 101 "$BTC_ADDRESS" >/dev/null
 fi
-if [ "$(doi getblockcount)" -lt 1 ]; then
-    doi -rpcwallet=pool generatetoaddress 1 "$DOI_ADDRESS" >/dev/null
+# Doichain Core 31.1.6 baut in createauxblock bei Höhen bis 16 einen 1-Byte-Coinbase-scriptSig und lehnt den
+# eigenen Block mit bad-cb-length ab (OP_1..OP_16 als Höhe). Ab Höhe 17 ist der Push 2 Byte lang, deshalb vorminen.
+DOI_HEIGHT=$(doi getblockcount)
+if [ "$DOI_HEIGHT" -lt 17 ]; then
+    doi -rpcwallet=pool generatetoaddress $((17 - DOI_HEIGHT)) "$DOI_ADDRESS" >/dev/null
 fi
 
 echo "Bitcoin  regtest Höhe $(btc getblockcount), Auszahlungsadresse $BTC_ADDRESS"

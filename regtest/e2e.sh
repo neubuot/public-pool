@@ -8,8 +8,8 @@ ROOT=$(cd .. && pwd)
 SHARES=${SHARES:-3}
 POOL_LOG=${POOL_LOG:-$ROOT/regtest/pool-e2e.log}
 
-doi() { docker exec nerdpool-doichaind doichain-cli -regtest -rpcuser=pool -rpcpassword=pool -rpcport=18445 "$@"; }
-btc() { docker exec nerdpool-bitcoind bitcoin-cli -regtest -rpcuser=pool -rpcpassword=pool "$@"; }
+# shellcheck disable=SC1091
+source ./backend.sh
 
 bash setup.sh
 # shellcheck disable=SC1091
@@ -22,16 +22,44 @@ if [ ! -d "$ROOT/node_modules" ]; then
     (cd "$ROOT" && npm install --no-audit --no-fund)
 fi
 
+STRATUM_PORT=${STRATUM_PORT:-3333}
+API_PORT=${API_PORT:-3334}
+
+# Pool-Prozesse über ihre Ports beenden: nest start startet node als Kindprozess, und unter Git Bash sind
+# die Bash-PIDs keine Windows-PIDs, ein kill auf die Subshell lässt den Pool sonst weiterlaufen.
+listening_pids() {
+    if command -v powershell >/dev/null 2>&1; then
+        # sprachunabhängig (netstat gibt den Zustand lokalisiert aus, z. B. ABHÖREN)
+        powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort $STRATUM_PORT,$API_PORT -State Listen -ErrorAction SilentlyContinue).OwningProcess | Sort-Object -Unique" 2>/dev/null | tr -d '\r'
+    elif command -v lsof >/dev/null 2>&1; then
+        lsof -t -iTCP:"$STRATUM_PORT" -iTCP:"$API_PORT" -sTCP:LISTEN 2>/dev/null | sort -u
+    fi
+}
+
+stop_pool() {
+    for pid in $(listening_pids); do
+        if command -v taskkill >/dev/null 2>&1; then
+            taskkill //F //T //PID "$pid" >/dev/null 2>&1 || true
+        else
+            kill "$pid" 2>/dev/null || true
+        fi
+    done
+}
+
+if [ -n "$(listening_pids)" ]; then
+    echo "== Alter Pool-Prozess belegt die Ports, wird beendet"
+    stop_pool
+    sleep 2
+fi
+
 echo "== Pool starten (Log: $POOL_LOG)"
-(cd "$ROOT" && npx nest start > "$POOL_LOG" 2>&1) &
+: > "$POOL_LOG"
+(cd "$ROOT" && npx nest start >> "$POOL_LOG" 2>&1) &
 POOL_PID=$!
 cleanup() {
     echo "== Pool stoppen"
     kill "$POOL_PID" 2>/dev/null || true
-    # nest start startet node als Kindprozess, auf Windows (Git Bash) bleibt der sonst stehen
-    if command -v taskkill >/dev/null 2>&1; then
-        taskkill //F //T //PID "$POOL_PID" >/dev/null 2>&1 || true
-    fi
+    stop_pool
 }
 trap cleanup EXIT
 
