@@ -18,6 +18,7 @@ import { TelegramSubscriptionsModule } from './ORM/telegram-subscriptions/telegr
 import { AppService } from './services/app.service';
 import { BitcoinRpcService } from './services/bitcoin-rpc.service';
 import { BraiinsService } from './services/braiins.service';
+import { DoichainRpcService } from './services/doichain-rpc.service';
 import { BTCPayService } from './services/btc-pay.service';
 import { DiscordService } from './services/discord.service';
 import { NotificationService } from './services/notification.service';
@@ -68,6 +69,7 @@ const ORMModules = [
         StratumV1Service,
         TelegramService,
         BitcoinRpcService,
+        DoichainRpcService,
         NotificationService,
         BitcoinAddressValidator,
         StratumV1JobsService,

@@ -51,6 +51,32 @@ export class AuthorizationMessage extends StratumBaseMessage {
     @IsOptional()
     public password?: string;
 
+    /**
+     * Merged mining: the Doichain payout address travels in the stratum password, either bare
+     * ("dc1q...") or as "doi=dc1q...", optionally combined with "d=<difficulty>". Validated against
+     * the Doichain node later, here only the candidate is extracted.
+     */
+    @Expose()
+    @IsString()
+    @MaxLength(90)
+    @IsOptional()
+    @Transform(({ value, key, obj, type }) => {
+        const password: string | null = obj.params[1];
+        if (password == null) {
+            return null;
+        }
+        const explicitMatch = password.match(/(?:^|[,\s])doi=([A-Za-z0-9]+)(?:[,\s]|$)/);
+        if (explicitMatch != null) {
+            return explicitMatch[1];
+        }
+        const candidate = password
+            .split(/[,\s]+/)
+            .filter(part => part.length > 0 && !part.includes('='))
+            .find(part => /^[A-Za-z0-9]{26,90}$/.test(part));
+        return candidate ?? null;
+    })
+    public doiAddress?: string;
+
     constructor() {
         super();
         this.method = eRequestMethod.AUTHORIZE;

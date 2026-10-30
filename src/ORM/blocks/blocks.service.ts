@@ -28,7 +28,10 @@ export class BlocksService {
                 height: true,
                 minerAddress: true,
                 worker: true,
-                sessionId: true
+                sessionId: true,
+                chain: true,
+                blockHash: true,
+                result: true
             }
         });
     }
@@ -39,7 +42,10 @@ export class BlocksService {
                 height: true,
                 minerAddress: true,
                 worker: true,
-                sessionId: true
+                sessionId: true,
+                chain: true,
+                blockHash: true,
+                result: true
             },
             where: {
                 minerAddress: address

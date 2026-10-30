@@ -1,0 +1,52 @@
+name: nerdpool-regtest
+
+# Regtest-Umgebung für Phase 0: Bitcoin Core (Parent-Kette) und Doichain Core (Aux-Kette).
+# Der Pool läuft auf dem Host und spricht beide Nodes über 127.0.0.1 an (RPC-Login pool/pool).
+services:
+  bitcoind:
+    image: bitcoin/bitcoin:29.5
+    container_name: nerdpool-bitcoind
+    command:
+      - -regtest
+      - -server=1
+      - -printtoconsole
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=pool
+      - -rpcpassword=pool
+      - -fallbackfee=0.0001
+      - -zmqpubrawblock=tcp://0.0.0.0:28332
+      - -zmqpubhashblock=tcp://0.0.0.0:28333
+      - -listen=0
+    ports:
+      - "127.0.0.1:18443:18443"
+      - "127.0.0.1:28332:28332"
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+
+  doichaind:
+    build: ./doichain
+    image: nerdpool/doichain-core:v31.1.6
+    container_name: nerdpool-doichaind
+    command:
+      - -regtest
+      - -server=1
+      - -printtoconsole
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=pool
+      - -rpcpassword=pool
+      - -rpcport=18445
+      - -port=18446
+      - -zmqpubhashblock=tcp://0.0.0.0:28334
+      - -listen=0
+      - -datadir=/data
+    ports:
+      - "127.0.0.1:18445:18445"
+      - "127.0.0.1:28334:28334"
+    volumes:
+      - doichain-data:/data
+
+volumes:
+  bitcoin-data:
+  doichain-data:

@@ -23,4 +23,15 @@ export class BlocksEntity extends TrackedEntity {
     @Column()
     blockData: string;
 
+    /** BTC for the parent chain, DOI for a merge mined Doichain block */
+    @Column({ length: 8, type: 'varchar', default: 'BTC' })
+    chain: string;
+
+    @Column({ length: 64, type: 'varchar', nullable: true })
+    blockHash: string;
+
+    /** node response to the submission */
+    @Column({ type: 'varchar', nullable: true })
+    result: string;
+
 }

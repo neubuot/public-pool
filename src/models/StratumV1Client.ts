@@ -4,7 +4,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError, ValidatorOptions } from 'class-validator';
 import * as crypto from 'crypto';
 import { Socket } from 'net';
-import { firstValueFrom, Subscription } from 'rxjs';
+import { firstValueFrom, skip, Subscription } from 'rxjs';
 import { clearInterval } from 'timers';
 
 import { AddressSettingsService } from '../ORM/address-settings/address-settings.service';
@@ -28,6 +28,8 @@ import { EXTRANONCE1_SIZE_BYTES } from './stratum.constants';
 import { SuggestDifficulty } from './stratum-messages/SuggestDifficultyMessage';
 import { StratumV1ClientStatistics } from './StratumV1ClientStatistics';
 import { ExternalSharesService } from '../services/external-shares.service';
+import { DoichainRpcService } from '../services/doichain-rpc.service';
+import { hashMeetsTarget } from './auxpow';
 
 const TRUE_DIFF_ONE = 2.695953529101131e67;
 const BLOCKED_USER_AGENT_LOG_INTERVAL_MS = 60 * 1000;
@@ -42,6 +44,9 @@ export class StratumV1Client {
     private clientAuthorization: AuthorizationMessage;
     private clientSuggestedDifficulty: SuggestDifficulty;
     private stratumSubscription: Subscription;
+    private doiSubscription: Subscription;
+    /** Doichain payout address for merged mining, null when this client mines Bitcoin only */
+    private doiAddress: string = null;
     private backgroundWork: NodeJS.Timeout[] = [];
 
     private statistics: StratumV1ClientStatistics;
@@ -73,7 +78,8 @@ export class StratumV1Client {
         private readonly blocksService: BlocksService,
         private readonly configService: ConfigService,
         private readonly addressSettingsService: AddressSettingsService,
-        private readonly externalSharesService: ExternalSharesService
+        private readonly externalSharesService: ExternalSharesService,
+        private readonly doichainRpcService?: DoichainRpcService
     ) {
 
         this.socket.on('data', (data: Buffer) => {
@@ -107,6 +113,10 @@ export class StratumV1Client {
 
         if (this.stratumSubscription != null) {
             this.stratumSubscription.unsubscribe();
+        }
+
+        if (this.doiSubscription != null) {
+            this.doiSubscription.unsubscribe();
         }
 
         this.backgroundWork.forEach(work => {
@@ -391,6 +401,8 @@ export class StratumV1Client {
             }
         }
 
+        await this.resolveDoiAddress();
+
         this.stratumSubscription = this.stratumV1JobsService.newMiningJob$.subscribe(async (jobTemplate) => {
             try {
                 if(jobTemplate.blockData.clearJobs){
@@ -402,6 +414,18 @@ export class StratumV1Client {
                 console.error(e);
             }
         });
+
+        if (this.doiAddress != null) {
+            // A new Doichain block invalidates the aux block in the coinbase: hand out a fresh job (not clean,
+            // the Bitcoin work itself is still valid).
+            this.doiSubscription = this.doichainRpcService.newBlock$.pipe(skip(1)).subscribe(async () => {
+                try {
+                    await this.refreshJobForNewAuxBlock();
+                } catch (e) {
+                    console.error('Could not refresh job after Doichain block', e);
+                }
+            });
+        }
 
         this.backgroundWork.push(
             setInterval(async () => {
@@ -446,12 +470,22 @@ export class StratumV1Client {
             throw new Error('Invalid network configuration');
         }
 
+        let auxBlock = null;
+        if (this.doiAddress != null) {
+            try {
+                auxBlock = await this.doichainRpcService.getAuxBlock(this.doiAddress);
+            } catch (e) {
+                console.error(`createauxblock failed for ${this.doiAddress}, job without merged mining:`, e?.message ?? e);
+            }
+        }
+
         const job = new MiningJob(
             this.configService,
             network,
             this.stratumV1JobsService.getNextId(),
             payoutInformation,
-            jobTemplate
+            jobTemplate,
+            auxBlock
         );
 
         this.stratumV1JobsService.addJob(job);
@@ -555,7 +589,7 @@ export class StratumV1Client {
             submission.extraNonce2,
             timestamp
         );
-        const { submissionDifficulty } = this.calculateDifficulty(header);
+        const { submissionDifficulty, submissionHashBuffer } = this.calculateDifficulty(header);
 
         //console.log(`DIFF: ${submissionDifficulty} of ${this.sessionDifficulty} from ${this.clientAuthorization.worker + '.' + this.extraNonceAndSessionId}`);
 
@@ -564,6 +598,11 @@ export class StratumV1Client {
             const success = await this.write(JSON.stringify(submission.response()) + '\n');
             if (!success) {
                 return false;
+            }
+
+            // Merged mining: the same header hash may satisfy the (much lower) Doichain target.
+            if (job.auxBlock != null && hashMeetsTarget(submissionHashBuffer, job.auxTarget)) {
+                await this.submitAuxPow(job, jobTemplate, versionMask, nonce, submission.extraNonce2, timestamp);
             }
 
             if (submissionDifficulty >= jobTemplate.blockData.networkDifficulty) {
@@ -579,11 +618,14 @@ export class StratumV1Client {
                 const blockHex = updatedJobBlock.toHex(false);
                 const result = await this.bitcoinRpcService.SUBMIT_BLOCK(blockHex);
                 await this.blocksService.save({
+                    chain: 'BTC',
                     height: jobTemplate.blockData.height,
+                    blockHash: updatedJobBlock.getId(),
                     minerAddress: this.clientAuthorization.address,
                     worker: this.clientAuthorization.worker,
                     sessionId: this.extraNonceAndSessionId,
-                    blockData: blockHex
+                    blockData: blockHex,
+                    result: typeof result === 'string' ? result : JSON.stringify(result)
                 });
 
                 await this.notificationService.notifySubscribersBlockFound(this.clientAuthorization.address, jobTemplate.blockData.height, updatedJobBlock, result);
@@ -684,13 +726,86 @@ export class StratumV1Client {
         }
     }
 
-    private calculateDifficulty(header: Buffer): { submissionDifficulty: number, submissionHash: string } {
+    /**
+     * Picks the Doichain payout address for merged mining: the stratum password (bare address or doi=...),
+     * else the pool wide DOICHAIN_DEFAULT_ADDRESS, else no merged mining for this client.
+     */
+    private async resolveDoiAddress() {
+        this.doiAddress = null;
+        if (this.doichainRpcService == null || !this.doichainRpcService.enabled) {
+            return;
+        }
+
+        const candidate = this.clientAuthorization.doiAddress;
+        if (candidate != null) {
+            if (await this.doichainRpcService.validateAddress(candidate)) {
+                this.doiAddress = candidate;
+                console.log(`Client ${this.extraNonceAndSessionId} merge mines Doichain to ${candidate}`);
+                return;
+            }
+            console.warn(`Client ${this.extraNonceAndSessionId}: password '${candidate}' is not a Doichain address, using the pool default`);
+        }
+
+        const fallback: string = this.configService.get('DOICHAIN_DEFAULT_ADDRESS');
+        if (fallback != null && fallback.length > 0 && await this.doichainRpcService.validateAddress(fallback)) {
+            this.doiAddress = fallback;
+        }
+    }
+
+    /** Sends the current Bitcoin work again with a fresh aux block (after a new Doichain block). */
+    private async refreshJobForNewAuxBlock() {
+        if (this.connectionClosed || this.doiAddress == null) {
+            return;
+        }
+        const jobTemplate = await firstValueFrom(this.stratumV1JobsService.newMiningJob$);
+        const nextTimestamp = Math.max(
+            jobTemplate.block.timestamp,
+            Math.floor(Date.now() / 1000),
+            (this.lastSentMiningJobTimestamp ?? 0) + 1
+        );
+        const refreshedJobTemplate: IJobTemplate = {
+            ...jobTemplate,
+            block: Object.assign(new bitcoinjs.Block(), jobTemplate.block, {
+                timestamp: nextTimestamp
+            }),
+            blockData: { ...jobTemplate.blockData, clearJobs: false }
+        };
+        await this.sendNewMiningJob(refreshedJobTemplate);
+    }
+
+    private async submitAuxPow(job: MiningJob, jobTemplate: IJobTemplate, versionMask: number, nonce: number, extraNonce2: string, timestamp: number) {
+        console.log(`!!! DOICHAIN BLOCK FOUND !!! height ${job.auxBlock.height}, aux block ${job.auxBlock.hash}, worker ${this.clientAuthorization.worker}.${this.extraNonceAndSessionId}`);
+        try {
+            const auxPowHex = job.buildAuxPowHex(jobTemplate, versionMask, nonce, this.extraNonceAndSessionId, extraNonce2, timestamp);
+            const result = await this.doichainRpcService.submitAuxBlock(job.auxBlock.hash, auxPowHex);
+            await this.blocksService.save({
+                chain: 'DOI',
+                height: job.auxBlock.height,
+                blockHash: job.auxBlock.hash,
+                minerAddress: this.clientAuthorization.address,
+                worker: this.clientAuthorization.worker,
+                sessionId: this.extraNonceAndSessionId,
+                blockData: auxPowHex,
+                result: result.message
+            });
+            if (!result.accepted) {
+                console.error(`Doichain rejected the AuxPoW for aux block ${job.auxBlock.hash}: ${result.message}`);
+            }
+        } catch (e) {
+            console.error('AuxPoW submission failed', e);
+        } finally {
+            // whatever happened, the next job needs a fresh aux block
+            this.doichainRpcService.invalidateAuxBlock(this.doiAddress);
+        }
+    }
+
+    private calculateDifficulty(header: Buffer): { submissionDifficulty: number, submissionHash: string, submissionHashBuffer: Buffer } {
 
         const hashResult = bitcoinjs.crypto.hash256(header);
 
         const target = this.le256todouble(hashResult);
         const submissionDifficulty = target === 0 ? Number.POSITIVE_INFINITY : TRUE_DIFF_ONE / target;
-        return { submissionDifficulty, submissionHash: hashResult.toString('hex') };
+        return { submissionDifficulty, submissionHash: hashResult.toString('hex'), submissionHashBuffer: hashResult };
     }
 
 

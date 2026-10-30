@@ -6,6 +6,7 @@ import { eResponseMethod } from './enums/eResponseMethod';
 import { IMiningNotify } from './stratum-messages/IMiningNotify';
 import { ConfigService } from '@nestjs/config';
 import { TOTAL_EXTRANONCE_SIZE_BYTES } from './stratum.constants';
+import { buildAuxTag, IAuxBlock, serializeAuxPow, targetFromBits } from './auxpow';
 
 const MAX_BLOCK_WEIGHT = 4000000;
 const MAX_SCRIPT_SIZE = 100; //   https://github.com/bitcoin/bitcoin/blob/ffdc3d6060f6e65e69cf115a13b83e6eb4a0a0a8/src/consensus/tx_check.cpp#L49
@@ -26,17 +27,31 @@ export class MiningJob {
     public networkDifficulty: number;
     public creation: number;
 
+    /** Doichain block merge mined with this job (null when merged mining is off for this client). */
+    public auxBlock: IAuxBlock | null = null;
+    /** Doichain target decoded from auxBlock.bits. */
+    public auxTarget: bigint | null = null;
+
     constructor(
         configService: ConfigService,
         private network: bitcoinjs.networks.Network,
         public jobId: string,
         payoutInformation: AddressObject[],
-        jobTemplate: IJobTemplate
+        jobTemplate: IJobTemplate,
+        auxBlock?: IAuxBlock
     ) {
 
         this.creation = new Date().getTime();
         this.jobTemplateId = jobTemplate.blockData.id;
         this.merkleBranchBuffers = jobTemplate.merkle_branch.map(branch => Buffer.from(branch, 'hex'));
+
+        // Merged mining: the aux block hash is committed in the coinbase scriptSig (44 byte tag, see auxpow.ts)
+        let auxTag: Buffer = Buffer.alloc(0);
+        if (auxBlock != null) {
+            this.auxBlock = auxBlock;
+            this.auxTarget = targetFromBits(auxBlock.bits);
+            auxTag = buildAuxTag(auxBlock.hash);
+        }
 
         this.coinbaseTransaction = this.createCoinbaseTransaction(payoutInformation, jobTemplate.blockData.coinbasevalue);
 
@@ -62,12 +77,12 @@ export class MiningJob {
         // Generate padding and take length of encode blockHeight into account
         const padding = Buffer.alloc(TOTAL_EXTRANONCE_SIZE_BYTES + (3 - blockHeightEncoded.length), 0)
 
-        // Build the script
-        let script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, extra, padding]);
-        // Check if the pool identifier is too long
+        // Build the script: height | pool identifier | aux tag | extranonce padding
+        let script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, extra, auxTag, padding]);
+        // Check if the pool identifier is too long (the aux tag is kept, it is consensus relevant for the aux chain)
         if (script.length > MAX_SCRIPT_SIZE) {
             console.warn('Pool identifier is too long, removing the pool identifier');
-            script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, padding]);
+            script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, auxTag, padding]);
         }
 
         this.coinbaseTransaction.ins[0].script = script;
@@ -76,7 +91,7 @@ export class MiningJob {
         // Check if the pool identifier is too long
         if ((this.coinbaseTransaction.weight() + jobTemplate.block.weight()) > MAX_BLOCK_WEIGHT) {
             console.warn('Block weight exceeds the maximum allowed weight, removing the pool identifier');
-            let script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, padding]);
+            let script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, auxTag, padding]);
             this.coinbaseTransaction.ins[0].script = script;
         }
 
@@ -98,6 +113,24 @@ export class MiningJob {
 
     public cloneCoinbaseTransaction(): bitcoinjs.Transaction {
         return bitcoinjs.Transaction.fromBuffer(this.coinbaseTransaction.toBuffer());
+    }
+
+    /**
+     * Builds the AuxPoW proof (hex) for a share: the mined coinbase transaction, its merkle branch and the
+     * mined parent header. Only meaningful when the share's header hash is below auxTarget.
+     */
+    public buildAuxPowHex(jobTemplate: IJobTemplate, versionMask: number, nonce: number, extraNonce: string, extraNonce2: string, timestamp: number): string {
+        if (this.auxBlock == null) {
+            throw new Error('job has no aux block');
+        }
+        const coinbase = this.cloneCoinbaseTransaction();
+        const script = coinbase.ins[0].script.toString('hex');
+        coinbase.ins[0].script = Buffer.from(`${script.substring(0, script.length - (TOTAL_EXTRANONCE_SIZE_BYTES * 2))}${extraNonce}${extraNonce2}`, 'hex');
+
+        const header = this.buildHeaderBuffer(jobTemplate, versionMask, nonce, extraNonce, extraNonce2, timestamp);
+
+        // toBuffer() serializes with witness (the coinbase carries the witness reserved value), as Doichain expects.
+        return serializeAuxPow(coinbase.toBuffer(), this.merkleBranchBuffers, header).toString('hex');
     }
 
     public buildHeaderBuffer(jobTemplate: IJobTemplate, versionMask: number, nonce: number, extraNonce: string, extraNonce2: string, timestamp: number): Buffer {
