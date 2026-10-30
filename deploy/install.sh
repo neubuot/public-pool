@@ -23,7 +23,13 @@ if ! command -v docker >/dev/null 2>&1; then
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     . /etc/os-release
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+    # Docker pflegt neue Ubuntu-Versionen mit Verzögerung; dann die Pakete der letzten LTS nehmen
+    codename=${VERSION_CODENAME}
+    if ! curl -fsI "https://download.docker.com/linux/ubuntu/dists/${codename}/Release" >/dev/null 2>&1; then
+        echo "Docker-Paketquelle für ${codename} gibt es noch nicht, verwende noble (Ubuntu 24.04)"
+        codename=noble
+    fi
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${codename} stable" > /etc/apt/sources.list.d/docker.list
     apt-get update -q
     apt-get install -y -q docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
