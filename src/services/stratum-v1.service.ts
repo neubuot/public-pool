@@ -58,7 +58,9 @@ export class StratumV1Service implements OnModuleInit {
 
     async onModuleInit(): Promise<void> {
 
-        if (process.env.NODE_APP_INSTANCE == '0' || process.env.MASTER == 'true') {
+        // single process (no NODE_APP_INSTANCE) or the first cluster instance: no client can be connected yet, so
+        // rows left from the previous run are gone, otherwise the dashboard counts ghosts for five minutes
+        if (process.env.NODE_APP_INSTANCE == null || process.env.NODE_APP_INSTANCE == '0' || process.env.MASTER == 'true') {
             await this.clientService.deleteAll();
         }
 
