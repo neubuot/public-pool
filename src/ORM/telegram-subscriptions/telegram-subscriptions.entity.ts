@@ -19,4 +19,8 @@ export class TelegramSubscriptionsEntity extends TrackedEntity {
     @Column({ default: true })
     offlineAlerts: boolean;
 
+    /** messages with the share card when the address beats its best share (/records on|off) */
+    @Column({ default: true })
+    recordAlerts: boolean;
+
 }

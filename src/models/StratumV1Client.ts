@@ -699,7 +699,19 @@ export class StratumV1Client {
             if (submissionDifficulty > this.entity.bestDifficulty) {
                 await this.clientService.updateBestDifficultyIfHigher(this.extraNonceAndSessionId, submissionDifficulty);
                 this.entity.bestDifficulty = submissionDifficulty;
-                await this.addressSettingsService.updateBestDifficultyIfHigher(this.clientAuthorization.address, submissionDifficulty, this.entity.userAgent);
+                // the address's best is only beaten when the atomic update changes a row: that is a record worth
+                // telling (the previous best is looked up later from the top shares, no read before the update)
+                const updated = await this.addressSettingsService.updateBestDifficultyIfHigher(this.clientAuthorization.address, submissionDifficulty, this.entity.userAgent);
+                if ((updated?.affected ?? 0) > 0 && typeof this.notificationService?.shareRecord === 'function') {
+                    this.notificationService.shareRecord({
+                        address: this.clientAuthorization.address,
+                        worker: this.clientAuthorization.worker,
+                        userAgent: this.entity.userAgent ?? null,
+                        difficulty: submissionDifficulty,
+                        previous: 0,
+                        time: Date.now()
+                    });
+                }
             }
             if (this.topSharesService != null) {
                 try {

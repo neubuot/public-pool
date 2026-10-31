@@ -100,7 +100,27 @@ letzte gemeldete Zustand steht je Adresse und Worker in `worker_presence_entity`
 Lebenszeichen gelöscht); beim ersten Durchlauf für eine Adresse wird nur der Stand erfasst, ohne Nachricht, und in
 den ersten `OFFLINE_ALERT_MINUTES` nach einem Neustart des Pools wird nichts gemeldet, weil die Miner sich erst
 wieder verbinden. Bot-Befehle: `/subscribe`, `/unsubscribe`, `/offline on|off [Adresse]` (Spalte `offlineAlerts`
-im Abonnement), `/status` (Worker je Adresse aus den Sessions der letzten 24 Stunden), `/help`.
+im Abonnement), `/records on|off [Adresse]` (Spalte `recordAlerts`), `/status` (Worker je Adresse aus den
+Sessions der letzten 24 Stunden), `/help`.
+
+Rekord-Alarm (seit 31.10.2026): Schlägt ein Share den Best Share seiner Adresse (`address_settings_entity`,
+Update mit `affected > 0`), meldet `RecordAlertsService` ihn ab `RECORD_ALERT_MIN_PERCENT` der Doichain-Difficulty
+(pool.env, Standard 1, 0 = jeder Rekord, off = aus) an die Telegram-Abonnenten als Foto mit der Best-Share-Karte
+(`/api/share/best/<Adresse>`, Vorschauseite `/s/best/<Adresse>`, im Dashboard `/share/best/<Adresse>`) und an die
+Webhooks. Rekorde innerhalb von 90 Sekunden werden zu einer Nachricht mit dem höchsten zusammengefasst, so bleibt
+ein frischer Miner, der sich in der ersten Stunde ständig selbst schlägt, erträglich.
+
+Webhooks (seit 31.10.2026): Je BTC-Adresse bis zu drei Ziele, auf „Mein Dashboard“ unter Benachrichtigungen
+eingetragen (kein Login, wer die Adresse kennt, darf eintragen und entfernen; die Ziele bekommen nur, was das
+öffentliche Dashboard zeigt). Arten: `ntfy` (JSON-Publish an den Server mit Thema aus der URL, Titel, Klick-Link
+und Bild als Anhang), `discord` (Webhook-Nachricht mit Bild als Embed), `json` (das Ereignis als JSON, etwa für
+Home Assistant). Ereignisse `test`, `block.found`, `worker.offline`, `worker.online`, `share.record`. API
+`/api/webhooks/<Adresse>` (GET Liste mit maskierten URLs, POST `{url, kind}`, DELETE `/<id>`, POST `/test`),
+gedrosselt. Schutz vor internen Zielen: nur https, keine Weiterleitungen, ein eigener DNS-Lookup im HTTPS-Agent
+lehnt private, Loopback- und Link-local-Adressen ab (`src/utils/webhook-targets.ts`, `src/services/webhook.service.ts`).
+Nach zehn Fehlversuchen in Folge wird ein Ziel abgeschaltet (Tabelle `webhook_entity`), erneutes Eintragen
+schaltet es wieder ein. Die Seite `/integrations` im Dashboard erklärt Telegram, Webhooks, Home Assistant
+(REST-Sensoren und Webhook-Automation) und die JSON-Schnittstelle.
 
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 

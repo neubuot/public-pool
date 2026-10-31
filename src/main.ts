@@ -40,6 +40,7 @@ async function bootstrap() {
     { prefix: '/api/s/', limiter: new RateLimiter(30, 0.5) },
     { prefix: '/api/validate/', limiter: new RateLimiter(60, 1) },
     { prefix: '/api/miner/', limiter: new RateLimiter(120, 2) },
+    { prefix: '/api/webhooks/', limiter: new RateLimiter(30, 0.5) },
   ]);
   app.useGlobalPipes(
     new ValidationPipe({

@@ -41,6 +41,10 @@ import { ShareImageService } from './services/share-image.service';
 import { ShareController } from './controllers/share/share.controller';
 import { WorkerPresenceModule } from './ORM/worker-presence/worker-presence.module';
 import { WorkerAlertsService } from './services/worker-alerts.service';
+import { WebhooksModule } from './ORM/webhooks/webhooks.module';
+import { WebhookService } from './services/webhook.service';
+import { RecordAlertsService } from './services/record-alerts.service';
+import { WebhooksController } from './controllers/webhooks/webhooks.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -52,7 +56,8 @@ const ORMModules = [
     ExternalSharesModule,
     ChainSampleModule,
     TopSharesModule,
-    WorkerPresenceModule
+    WorkerPresenceModule,
+    WebhooksModule
 ]
 
 @Module({
@@ -82,7 +87,8 @@ const ORMModules = [
         ExplorerController,
         MinerController,
         ValidateController,
-        ShareController
+        ShareController,
+        WebhooksController
     ],
     providers: [
         PoolEventsService,
@@ -93,6 +99,8 @@ const ORMModules = [
         AppService,
         StratumV1Service,
         TelegramService,
+        WebhookService,
+        RecordAlertsService,
         WorkerAlertsService,
         BitcoinRpcService,
         DoichainRpcService,

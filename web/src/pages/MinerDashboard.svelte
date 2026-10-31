@@ -11,6 +11,7 @@
   import CopyButton from '../components/CopyButton.svelte';
   import LineChart from '../components/LineChart.svelte';
   import LotteryCard from '../components/LotteryCard.svelte';
+  import Notifications from '../components/Notifications.svelte';
   import StatusBox from '../components/StatusBox.svelte';
   import Terminal from '../components/Terminal.svelte';
   import WalletNotice from '../components/WalletNotice.svelte';
@@ -153,7 +154,10 @@
       </section>
 
       <section class="card span4" aria-label={t('miner.bestShare')} style="display: flex; flex-direction: column; gap: 14px">
-        <div class="label">{t('miner.bestShare')}</div>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div class="label">{t('miner.bestShare')}</div>
+          {#if best > 0}<a href={`/share/best/${address}`} style="margin-left: auto; font-size: 12.5px">{t('miner.shareBest')}</a>{/if}
+        </div>
         <div>
           <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap">
             <span class="mono" style="font-size: 30px; font-weight: 600">{fmtDifficulty(best)}</span>
@@ -188,12 +192,9 @@
         <div><div class="label">{t('miner.sharesLabel')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtInt(miner.shares)}</div></div>
         <div><div class="label">{t('miner.targetDoi')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtDifficulty(doiTarget)}</div></div>
         <div><div class="label">{t('miner.targetBtc')}</div><div class="mono" style="margin-top: 4px; font-size: 14px">{fmtDifficulty(btcTarget)}</div></div>
-        {#if snapshot?.pool.telegramBot}
-          <div style="flex: 1 1 100%; font-size: 13px; color: var(--text-2)">
-            <a href={`https://t.me/${snapshot.pool.telegramBot}`} target="_blank" rel="noopener noreferrer" style="color: var(--accent)">{t('miner.telegram', { bot: snapshot.pool.telegramBot })}</a>
-          </div>
-        {/if}
       </section>
+
+      <Notifications {address} telegramBot={snapshot?.pool.telegramBot ?? null} />
     </div>
   {/if}
 </main>

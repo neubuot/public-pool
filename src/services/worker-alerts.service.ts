@@ -4,19 +4,20 @@ import { Interval } from '@nestjs/schedule';
 
 import { ClientService } from '../ORM/client/client.service';
 import { TelegramSubscriptionsService } from '../ORM/telegram-subscriptions/telegram-subscriptions.service';
+import { WebhooksService } from '../ORM/webhooks/webhooks.service';
 import { WorkerPresenceService } from '../ORM/worker-presence/worker-presence.service';
 import { composeAlert, evaluateAddress, offlineAfterMinutes } from '../utils/worker-presence';
-import { TelegramService } from './telegram.service';
+import { NotificationService } from './notification.service';
 
 /** presence rows of workers without a sign of life for this long are dropped */
 const FORGET_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 const CLEANUP_EVERY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Tells Telegram subscribers when one of their workers stops sending shares or heartbeats and when it is back.
- * Runs once a minute for every address somebody subscribed with offline alerts on. A worker counts as offline
- * after OFFLINE_ALERT_MINUTES (default 10, 0 switches the alerts off) without a heartbeat; connected miners
- * heartbeat every minute even without shares, so an idle rig stays online, a disconnected one does not.
+ * Tells subscribers (Telegram and webhooks) when one of their workers stops sending shares or heartbeats and
+ * when it is back. Runs once a minute for every address somebody subscribed. A worker counts as offline after
+ * OFFLINE_ALERT_MINUTES (default 10, 0 switches the alerts off) without a heartbeat; connected miners heartbeat
+ * every minute even without shares, so an idle rig stays online, a disconnected one does not.
  */
 @Injectable()
 export class WorkerAlertsService {
@@ -30,8 +31,9 @@ export class WorkerAlertsService {
         private readonly configService: ConfigService,
         private readonly clientService: ClientService,
         private readonly subscriptionsService: TelegramSubscriptionsService,
+        private readonly webhooksService: WebhooksService,
         private readonly presenceService: WorkerPresenceService,
-        private readonly telegramService: TelegramService,
+        private readonly notificationService: NotificationService,
     ) {
         this.offlineAfterMs = offlineAfterMinutes(this.configService.get('OFFLINE_ALERT_MINUTES')) * 60_000;
         if (this.enabled) {
@@ -41,7 +43,7 @@ export class WorkerAlertsService {
 
     public get enabled(): boolean {
         const firstInstance = process.env.NODE_APP_INSTANCE == null || process.env.NODE_APP_INSTANCE === '0';
-        return this.offlineAfterMs > 0 && this.telegramService.active && firstInstance;
+        return this.offlineAfterMs > 0 && firstInstance;
     }
 
     @Interval(60_000)
@@ -65,7 +67,11 @@ export class WorkerAlertsService {
         this.running = true;
         let sent = 0;
         try {
-            for (const address of await this.subscriptionsService.addressesWithOfflineAlerts()) {
+            const addresses = new Set([
+                ...await this.subscriptionsService.addressesWithOfflineAlerts(),
+                ...await this.webhooksService.addresses(),
+            ]);
+            for (const address of addresses) {
                 try {
                     sent += await this.checkAddress(address, now);
                 } catch (e) {
@@ -92,12 +98,8 @@ export class WorkerAlertsService {
         if (transitions.length === 0) {
             return 0;
         }
-        const text = composeAlert(address, transitions, now, `${this.telegramService.publicUrl()}/d/${address}`);
-        const subscribers = await this.subscriptionsService.getOfflineSubscribers(address);
-        console.log(`Worker alert for ${address}: ${transitions.map(t => `${t.worker} ${t.kind}`).join(', ')} (${subscribers.length} chats)`);
-        for (const subscriber of subscribers) {
-            await this.telegramService.notifyChat(subscriber.telegramChatId, text);
-        }
-        return subscribers.length;
+        const text = composeAlert(address, transitions, now, `${this.notificationService.publicUrl()}/d/${address}`);
+        console.log(`Worker alert for ${address}: ${transitions.map(t => `${t.worker} ${t.kind}`).join(', ')}`);
+        return await this.notificationService.workerAlert(address, text, transitions);
     }
 }

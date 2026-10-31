@@ -14,7 +14,9 @@
   import Home from './pages/Home.svelte';
   import MinerDashboard from './pages/MinerDashboard.svelte';
   import NotFound from './pages/NotFound.svelte';
+  import Integrations from './pages/Integrations.svelte';
   import PoolDashboard from './pages/PoolDashboard.svelte';
+  import ShareBest from './pages/ShareBest.svelte';
   import ShareCard from './pages/ShareCard.svelte';
 
   const routes: { pattern: string, component: any }[] = [
@@ -22,10 +24,13 @@
     { pattern: '/pool', component: PoolDashboard },
     { pattern: '/blocks', component: Blocks },
     { pattern: '/d/:address', component: MinerDashboard },
+    { pattern: '/integrations', component: Integrations },
     { pattern: '/explorer', component: Explorer },
     { pattern: '/explorer/:chain/block/:id', component: ExplorerBlock },
     { pattern: '/explorer/:chain/tx/:txid', component: ExplorerTx },
     { pattern: '/explorer/:chain/address/:address', component: ExplorerAddress },
+    // vor der Blockkarte, sonst fängt /share/:chain/:height die Adresse als Höhe
+    { pattern: '/share/best/:address', component: ShareBest },
     { pattern: '/share/:chain/:height', component: ShareCard },
   ];
 

@@ -266,6 +266,54 @@ export interface InfoResponse {
     uptime: string;
 }
 
+export type WebhookKind = 'ntfy' | 'discord' | 'json';
+export interface WebhookView {
+    id: number;
+    kind: WebhookKind;
+    /** masked: host visible, path mostly hidden */
+    url: string;
+    enabled: boolean;
+    failures: number;
+    lastError: string | null;
+    lastDeliveredAt: number | null;
+    createdAt: number;
+}
+export interface WebhookList {
+    address: string;
+    max: number;
+    webhooks: WebhookView[];
+}
+
+async function parse<T>(response: Response): Promise<T> {
+    let body: any = null;
+    try {
+        body = await response.json();
+    } catch {
+        body = null;
+    }
+    if (!response.ok) {
+        const message = body?.message ?? body?.error ?? `HTTP ${response.status}`;
+        throw new ApiError(response.status, Array.isArray(message) ? message.join(', ') : String(message));
+    }
+    return body as T;
+}
+
+/** POST or DELETE with a JSON body */
+async function send<T>(method: 'POST' | 'DELETE', path: string, body?: unknown, timeoutMs = 20000): Promise<T> {
+    let response: Response;
+    try {
+        response = await fetch(`/api${path}`, {
+            method,
+            signal: AbortSignal.timeout(timeoutMs),
+            headers: { Accept: 'application/json', ...(body != null ? { 'Content-Type': 'application/json' } : {}) },
+            body: body != null ? JSON.stringify(body) : undefined,
+        });
+    } catch (e: any) {
+        throw new ApiError(0, e?.name === 'TimeoutError' ? 'Zeitüberschreitung' : (e?.message ?? 'Netzwerkfehler'));
+    }
+    return await parse<T>(response);
+}
+
 async function get<T>(path: string, timeoutMs = 20000): Promise<T> {
     let response: Response;
     try {
@@ -300,6 +348,10 @@ export const api = {
     block: (chain: Chain, id: string) => get<BlockDetail>(`/explorer/${chain.toLowerCase()}/block/${encodeURIComponent(id)}`),
     tx: (chain: Chain, txid: string) => get<TxDetail>(`/explorer/${chain.toLowerCase()}/tx/${encodeURIComponent(txid)}`),
     address: (chain: Chain, address: string) => get<AddressInfo>(`/explorer/${chain.toLowerCase()}/address/${encodeURIComponent(address)}`),
+    webhooks: (address: string) => get<WebhookList>(`/webhooks/${encodeURIComponent(address)}`),
+    addWebhook: (address: string, url: string, kind: WebhookKind) => send<WebhookList>('POST', `/webhooks/${encodeURIComponent(address)}`, { url, kind }),
+    removeWebhook: (address: string, id: number) => send<WebhookList>('DELETE', `/webhooks/${encodeURIComponent(address)}/${id}`),
+    testWebhook: (address: string, url: string, kind: WebhookKind) => send<{ ok: boolean, error: string | null }>('POST', `/webhooks/${encodeURIComponent(address)}/test`, { url, kind }, 30000),
 };
 
 /** Server-sent events of the pool; returns a closer. */

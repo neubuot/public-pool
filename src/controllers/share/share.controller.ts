@@ -1,7 +1,17 @@
 import { BadRequestException, Controller, Get, NotFoundException, Param, Req, Res } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { ShareImageService } from '../../services/share-image.service';
+import { fmtDifficultyDe, fmtPercentDe, ShareImageService } from '../../services/share-image.service';
+import { percentOfTarget } from '../../utils/record-alerts';
+
+const ADDRESS_RE = /^[A-Za-z0-9]{20,90}$/;
+
+function addressOf(value: string): string {
+    if (!ADDRESS_RE.test(value ?? '')) {
+        throw new BadRequestException('Keine Adresse');
+    }
+    return value;
+}
 
 function chainOf(value: string): 'BTC' | 'DOI' {
     const upper = (value ?? '').toUpperCase();
@@ -31,6 +41,49 @@ function escapeHtml(text: string): string {
 export class ShareController {
 
     constructor(private readonly shareImageService: ShareImageService) { }
+
+    /** The best share of an address as PNG (the record card), 404 while the address has no share. */
+    @Get('share/best/:address')
+    public async bestImage(@Param('address') addressParam: string, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+        const address = addressOf(addressParam);
+        const png = await this.shareImageService.renderBest(address, request.hostname);
+        if (png == null) {
+            throw new NotFoundException('Für diese Adresse gibt es noch keinen Share');
+        }
+        reply
+            .header('Content-Type', 'image/png')
+            .header('Cache-Control', 'public, max-age=300')
+            .header('Content-Disposition', 'inline; filename="nerdpool-best-share.png"')
+            .send(png);
+    }
+
+    @Get('s/best/:address')
+    public async bestPage(@Param('address') addressParam: string, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+        const address = addressOf(addressParam);
+        const data = await this.shareImageService.bestData(address, request.hostname);
+        const base = this.shareImageService.publicUrl(request.hostname);
+        if (data == null) {
+            reply.status(404).header('Content-Type', 'text/html; charset=utf-8').send(this.html(
+                'Noch kein Share · NerdPool', 'Für diese Adresse gibt es noch keinen Share.', null, base,
+                `<p>Für diese Adresse gibt es noch keinen Share.</p><p><a href="${base}/d/${escapeHtml(address)}">Dashboard des Miners</a></p>`));
+            return;
+        }
+        const doiPercent = fmtPercentDe(percentOfTarget(data.difficulty, data.doiTarget));
+        const title = `Best Share ${fmtDifficultyDe(data.difficulty)} · NerdPool`;
+        const description = `${data.worker.length > 0 ? `Worker ${data.worker}` : 'Ein Miner'} hat auf NerdPool einen Share mit ${doiPercent} der Doichain-Difficulty gefunden. Merged Mining: Bitcoin und Doichain gleichzeitig, solo, ohne Registrierung.`;
+        const image = `${base}/api/share/best/${address}?v=${Math.round(data.difficulty)}`;
+        const body = `
+<p><img src="${image}" alt="${escapeHtml(title)}" width="1200" height="630" style="width:100%;height:auto;border-radius:16px;border:1px solid #1E2A36"></p>
+<p>
+  <a href="${base}/share/best/${escapeHtml(address)}">Teilen-Karte im Dashboard</a> ·
+  <a href="${base}/d/${escapeHtml(address)}">Dashboard des Miners</a> ·
+  <a href="${image}" download="nerdpool-best-share.png">Bild herunterladen</a>
+</p>`;
+        reply
+            .header('Content-Type', 'text/html; charset=utf-8')
+            .header('Cache-Control', 'public, max-age=300')
+            .send(this.html(title, description, image, base, body));
+    }
 
     @Get('share/:chain/:height')
     public async image(@Param('chain') chainParam: string, @Param('height') heightParam: string, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {

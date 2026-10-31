@@ -9,6 +9,7 @@
     <a href="/impressum">{t('footer.imprint')}</a>
     <a href="/datenschutz">{t('footer.privacy')}</a>
     <a href="/nutzungsbedingungen">{t('footer.terms')}</a>
+    <a href="/integrations">{t('footer.integrations')}</a>
     <a href={walletsUrl} target="_blank" rel="noopener noreferrer">{t('footer.wallets')}</a>
     <a href={repoUrl} target="_blank" rel="noopener noreferrer">{t('footer.source')}</a>
   </div>

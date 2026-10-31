@@ -101,6 +101,25 @@ export class TelegramService implements OnModuleInit {
         }
     }
 
+    /** Sends a picture (Telegram fetches the URL itself) with a caption of at most 1024 characters. */
+    public async notifyChatPhoto(chatId: number | string, photoUrl: string, caption: string): Promise<boolean> {
+        if (this.bot == null) {
+            return false;
+        }
+        try {
+            await this.bot.post('sendPhoto', { chat_id: chatId, photo: photoUrl, caption: caption.slice(0, 1024) });
+            return true;
+        } catch (e) {
+            console.error(`Telegram photo to ${chatId} failed:`, e?.response?.data?.description ?? e?.message ?? e);
+            return false;
+        }
+    }
+
+    /** subscribers of an address with offline alerts on (none when no bot is configured) */
+    public async offlineSubscribers(address: string) {
+        return this.bot == null ? [] : await this.telegramSubscriptionsService.getOfflineSubscribers(address);
+    }
+
     /** Optional pool wide announcement chat or channel (TELEGRAM_ANNOUNCE_CHAT_ID, the bot must be a member). */
     private async announce(text: string) {
         const chatId = this.configService.get('TELEGRAM_ANNOUNCE_CHAT_ID');
@@ -164,9 +183,23 @@ export class TelegramService implements OnModuleInit {
                 }
                 const created = await this.telegramSubscriptionsService.saveSubscription(chatId, address);
                 await this.sendMessage(chatId, created
-                    ? `Subscribed! You will hear about blocks found with ${shortAddress(address)} and when one of its workers goes offline or comes back`
-                    + ` (${this.offlineMinutes()} minutes without a sign of life, /offline off to mute those).`
+                    ? `Subscribed! You will hear about blocks found with ${shortAddress(address)}, about new best shares (with the share card)`
+                    + ` and when one of its workers goes offline or comes back (${this.offlineMinutes()} minutes without a sign of life).`
+                    + ' /offline off and /records off mute those.'
                     : `Already subscribed to ${shortAddress(address)}.`);
+                return;
+            }
+            case 'records': {
+                const mode = command.args[0]?.toLowerCase();
+                const address = command.args[1];
+                if ((mode !== 'on' && mode !== 'off') || (address != null && validate(address) == false)) {
+                    await this.sendMessage(chatId, 'Send /records off to mute best share messages, /records on to get them again. Add a BTC address to change only that one.');
+                    return;
+                }
+                const changed = await this.telegramSubscriptionsService.setRecordAlerts(chatId, mode === 'on', address);
+                await this.sendMessage(chatId, changed > 0
+                    ? `Best share messages ${mode} for ${address != null ? shortAddress(address) : 'all your addresses'}.`
+                    : 'No subscription found. Send /subscribe <your BTC address> first.');
                 return;
             }
             case 'unsubscribe': {
@@ -212,11 +245,13 @@ export class TelegramService implements OnModuleInit {
             case 'help': {
                 await this.sendMessage(chatId,
                     'NerdPool bot. The address is the one you use as stratum user name.\n\n'
-                    + '/subscribe <BTC address> – messages when a worker of this address finds a Bitcoin or Doichain block, goes offline or comes back\n'
+                    + '/subscribe <BTC address> – messages when a worker of this address finds a Bitcoin or Doichain block, beats its best share, goes offline or comes back\n'
                     + '/unsubscribe <BTC address>\n'
                     + '/offline off [BTC address] – no offline and back online messages, /offline on to get them again\n'
+                    + '/records off [BTC address] – no best share messages, /records on to get them again\n'
                     + '/status – your addresses and their workers\n\n'
-                    + `A worker counts as offline after ${this.offlineMinutes()} minutes without shares or heartbeat.`);
+                    + `A worker counts as offline after ${this.offlineMinutes()} minutes without shares or heartbeat. `
+                    + 'Prefer ntfy, Discord or a JSON webhook? Add it on your dashboard under Notifications.');
                 return;
             }
             default:

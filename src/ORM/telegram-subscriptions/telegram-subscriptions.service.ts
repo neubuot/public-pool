@@ -23,6 +23,10 @@ export class TelegramSubscriptionsService {
         return uniqueChats(await this.telegramSubscriptions.find({ where: { address, offlineAlerts: true } }));
     }
 
+    public async getRecordSubscribers(address: string): Promise<TelegramSubscriptionsEntity[]> {
+        return uniqueChats(await this.telegramSubscriptions.find({ where: { address, recordAlerts: true } }));
+    }
+
     public async addressesWithOfflineAlerts(): Promise<string[]> {
         const rows: { address: string }[] = await this.telegramSubscriptions
             .createQueryBuilder('subscription')
@@ -62,6 +66,12 @@ export class TelegramSubscriptionsService {
     public async setOfflineAlerts(chatId: number, enabled: boolean, address?: string): Promise<number> {
         const where = address != null ? { telegramChatId: chatId, address } : { telegramChatId: chatId };
         const result = await this.telegramSubscriptions.update(where, { offlineAlerts: enabled });
+        return result.affected ?? 0;
+    }
+
+    public async setRecordAlerts(chatId: number, enabled: boolean, address?: string): Promise<number> {
+        const where = address != null ? { telegramChatId: chatId, address } : { telegramChatId: chatId };
+        const result = await this.telegramSubscriptions.update(where, { recordAlerts: enabled });
         return result.affected ?? 0;
     }
 }
