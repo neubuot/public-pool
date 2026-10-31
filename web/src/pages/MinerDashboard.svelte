@@ -13,6 +13,7 @@
   import LotteryCard from '../components/LotteryCard.svelte';
   import StatusBox from '../components/StatusBox.svelte';
   import Terminal from '../components/Terminal.svelte';
+  import WalletNotice from '../components/WalletNotice.svelte';
 
   interface Props { address: string; }
   let { address }: Props = $props();
@@ -179,6 +180,8 @@
       <section class="card span4" aria-label={t('miner.blockFeed')} style="display: flex; flex-direction: column; gap: 14px">
         <BlockFeed blocks={feed} {totals} title={t('miner.blockFeed')} subsidy={{ BTC: snapshot?.bitcoin.blockSubsidy ?? null, DOI: snapshot?.doichain.blockSubsidy ?? null }} />
       </section>
+
+      <div class="span12"><WalletNotice compact /></div>
 
       <section class="card span12" aria-label={t('miner.doiTo')} style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
         <div><div class="label">{t('miner.doiTo')}</div><div class="mono" style="margin-top: 4px; font-size: 14px; overflow-wrap: anywhere">{miner.doiAddress ?? t('miner.doiDefault')}</div></div>

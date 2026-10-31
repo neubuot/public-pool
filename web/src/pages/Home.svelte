@@ -9,6 +9,7 @@
   import { t } from '../lib/i18n.svelte';
   import { clock, remember, saved, stats } from '../lib/stats.svelte';
   import CopyButton from '../components/CopyButton.svelte';
+  import WalletNotice from '../components/WalletNotice.svelte';
 
   let btc = $state(saved.btcAddress);
   let doi = $state(saved.doiAddress);
@@ -145,9 +146,10 @@
         </div>
         <div style="display: flex; align-items: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; font-size: 13px">
           <label style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-2)"><input type="checkbox" bind:checked={btcOnly} style="width: 16px; height: 16px; accent-color: var(--accent)">{t('home.btcOnly')}</label>
-          <a href="https://doichain.org" target="_blank" rel="noopener noreferrer" style="margin-left: auto">{t('home.noWallet')}</a>
         </div>
       </section>
+
+      <WalletNotice />
 
       <section class="card" aria-label={t('home.step2')}>
         <div class="step"><span class="num mono">2</span><strong>{t('home.step2')}</strong><span class="muted-2" style="margin-left: auto; font-size: 12px">{t('home.generated')}</span></div>

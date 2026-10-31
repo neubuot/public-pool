@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { repoUrl } from '../lib/config';
+  import { repoUrl, walletsUrl } from '../lib/config';
   import { t } from '../lib/i18n.svelte';
 </script>
 
@@ -9,6 +9,7 @@
     <a href="/impressum">{t('footer.imprint')}</a>
     <a href="/datenschutz">{t('footer.privacy')}</a>
     <a href="/nutzungsbedingungen">{t('footer.terms')}</a>
+    <a href={walletsUrl} target="_blank" rel="noopener noreferrer">{t('footer.wallets')}</a>
     <a href={repoUrl} target="_blank" rel="noopener noreferrer">{t('footer.source')}</a>
   </div>
   <p class="muted-2" style="font-size: 12px; margin-top: 6px">{t('footer.basedOn')}</p>

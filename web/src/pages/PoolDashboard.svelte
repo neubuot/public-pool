@@ -12,6 +12,7 @@
   import LotteryCard from '../components/LotteryCard.svelte';
   import StatusBox from '../components/StatusBox.svelte';
   import Terminal from '../components/Terminal.svelte';
+  import WalletNotice from '../components/WalletNotice.svelte';
 
   const snapshot = $derived(stats.data);
   let range = $state<'24h' | '7d' | '30d'>('24h');
@@ -70,6 +71,7 @@
         <span style="font-size: 13px; color: var(--text-2)">{t('pool.noJobs', { percent: Math.round((snapshot.bitcoin.verificationProgress ?? 0) * 100) })}</span>
       </div>
     {/if}
+    <div style="margin-top: 20px"><WalletNotice compact /></div>
     <div class="grid12" style="margin-top: 20px">
 
       <section class="card span8" aria-label={t('pool.hashrate')}>

@@ -7,3 +7,4 @@ export const stratumUrl = `stratum+tcp://${poolDomain}:${stratumPort}`;
 export const isBeta: boolean = runtime.beta ?? true;
 export const repoUrl = 'https://github.com/neubuot/public-pool/tree/auxpow-doichain';
 export const mempoolSpace = 'https://mempool.space';
+export const walletsUrl = 'https://www.doilabs.org/downloads/';
