@@ -11,7 +11,7 @@ import { AddressSettingsService } from '../ORM/address-settings/address-settings
 import { BlocksService } from '../ORM/blocks/blocks.service';
 import { ClientStatisticsService } from '../ORM/client-statistics/client-statistics.service';
 import { ClientEntity } from '../ORM/client/client.entity';
-import { ClientService } from '../ORM/client/client.service';
+import { ClientService, ShareDiagnostics } from '../ORM/client/client.service';
 import { BitcoinRpcService } from '../services/bitcoin-rpc.service';
 import { NotificationService } from '../services/notification.service';
 import { IJobTemplate, StratumV1JobsService } from '../services/stratum-v1-jobs.service';
@@ -71,6 +71,8 @@ export class StratumV1Client {
     private lastShareAt: number | null = null;
 
     private miningSubmissionHashes = new Set<string>()
+    /** share counters of this session for the device diagnostics, written with the heartbeat */
+    private diagnostics: ShareDiagnostics = { sharesAccepted: 0, sharesStale: 0, sharesDuplicate: 0, sharesLowDiff: 0, lastRejectAt: null, lastRejectReason: null };
 
     constructor(
         public readonly socket: Socket,
@@ -562,6 +564,7 @@ export class StratumV1Client {
 
         // a miner may submit a job that doesn't exist anymore if it was removed by a new block notification (or expired, 5 min)
         if (job == null) {
+            this.noteReject('stale');
             const err = new StratumErrorMessage(
                 submission.id,
                 eStratumErrorCode.JobNotFound,
@@ -576,6 +579,7 @@ export class StratumV1Client {
         const jobTemplate = this.stratumV1JobsService.getJobTemplateById(job.jobTemplateId);
 
         if (jobTemplate == null) {
+            this.noteReject('stale');
             const err = new StratumErrorMessage(
                 submission.id,
                 eStratumErrorCode.JobNotFound,
@@ -596,6 +600,7 @@ export class StratumV1Client {
             submission.versionMask ?? ''
         ].join(':');
         if (this.miningSubmissionHashes.has(submissionHash)) {
+            this.noteReject('duplicate');
             const err = new StratumErrorMessage(
                 submission.id,
                 eStratumErrorCode.DuplicateShare,
@@ -632,6 +637,7 @@ export class StratumV1Client {
                 return false;
             }
             this.lastShareAt = Date.now();
+            this.diagnostics.sharesAccepted++;
             this.poolEventsService?.emit({
                 type: 'share',
                 address: this.clientAuthorization.address,
@@ -688,7 +694,7 @@ export class StratumV1Client {
                 const now = new Date();
                 // only update every minute
                 if (this.entity.updatedAt == null || now.getTime() - this.entity.updatedAt.getTime() > 1000 * 60) {
-                    await this.clientService.heartbeat(this.entity.address, this.entity.clientName, this.entity.sessionId, this.hashRate, now);
+                    await this.clientService.heartbeat(this.entity.address, this.entity.clientName, this.entity.sessionId, this.hashRate, now, this.diagnostics);
                     this.entity.updatedAt = now;
                 }
 
@@ -743,6 +749,7 @@ export class StratumV1Client {
             }
 
         } else {
+            this.noteReject('low-difficulty');
             const err = new StratumErrorMessage(
                 submission.id,
                 eStratumErrorCode.LowDifficultyShare,
@@ -761,6 +768,18 @@ export class StratumV1Client {
 
     }
 
+    private noteReject(reason: 'stale' | 'duplicate' | 'low-difficulty') {
+        if (reason === 'stale') {
+            this.diagnostics.sharesStale++;
+        } else if (reason === 'duplicate') {
+            this.diagnostics.sharesDuplicate++;
+        } else {
+            this.diagnostics.sharesLowDiff++;
+        }
+        this.diagnostics.lastRejectAt = Date.now();
+        this.diagnostics.lastRejectReason = reason;
+    }
+
     /**
      * Keeps a connected client visible while it sends no shares (no jobs while Bitcoin Core syncs, idle rig).
      * The hash rate counts as zero once no share arrived for ten minutes.
@@ -775,7 +794,7 @@ export class StratumV1Client {
         }
         const recentShare = this.lastShareAt != null && now.getTime() - this.lastShareAt < 10 * 60 * 1000;
         try {
-            await this.clientService.heartbeat(this.entity.address, this.entity.clientName, this.entity.sessionId, recentShare ? this.hashRate : 0, now);
+            await this.clientService.heartbeat(this.entity.address, this.entity.clientName, this.entity.sessionId, recentShare ? this.hashRate : 0, now, this.diagnostics);
             this.entity.updatedAt = now;
         } catch (e) {
             console.error('Idle heartbeat failed', e);

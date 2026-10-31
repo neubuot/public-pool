@@ -185,6 +185,11 @@ export class StratumV1JobsService {
         return this.blocks[jobTemplateId];
     }
 
+    /** The template the next job would be built from (the newest one), null before the first template. */
+    public getLatestJobTemplate(): IJobTemplate | null {
+        return this.blocks[(this.latestJobTemplateId - 1).toString(16)] ?? null;
+    }
+
     public addJob(job: MiningJob) {
         this.jobs[job.jobId] = job;
         this.latestJobId++;

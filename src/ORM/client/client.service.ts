@@ -6,6 +6,16 @@ import { ObjectLiteral, Repository } from 'typeorm';
 
 import { ClientEntity } from './client.entity';
 
+/** share counters of one stratum session (accepted, stale, duplicate, too low) for the device diagnostics */
+export interface ShareDiagnostics {
+    sharesAccepted: number;
+    sharesStale: number;
+    sharesDuplicate: number;
+    sharesLowDiff: number;
+    lastRejectAt: number | null;
+    lastRejectReason: string | null;
+}
+
 
 
 @Injectable()
@@ -55,8 +65,8 @@ export class ClientService {
             .execute();
     }
 
-    public async heartbeat(address: string, clientName: string, sessionId: string, hashRate: number, updatedAt: Date) {
-        return await this.clientRepository.update({ address, clientName, sessionId }, { hashRate, deletedAt: null, updatedAt });
+    public async heartbeat(address: string, clientName: string, sessionId: string, hashRate: number, updatedAt: Date, diagnostics?: ShareDiagnostics) {
+        return await this.clientRepository.update({ address, clientName, sessionId }, { hashRate, deletedAt: null, updatedAt, ...(diagnostics ?? {}) });
     }
 
     // public async save(client: Partial<ClientEntity>) {

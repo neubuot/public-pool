@@ -13,4 +13,11 @@ import App from './App.svelte';
 
 const app = mount(App, { target: document.getElementById('app')! });
 
+// Homescreen-App: der Service Worker hält nur die Offline-Seite vor (siehe public/sw.js)
+if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+    });
+}
+
 export default app;

@@ -122,6 +122,21 @@ Nach zehn Fehlversuchen in Folge wird ein Ziel abgeschaltet (Tabelle `webhook_en
 schaltet es wieder ein. Die Seite `/integrations` im Dashboard erklärt Telegram, Webhooks, Home Assistant
 (REST-Sensoren und Webhook-Automation) und die JSON-Schnittstelle.
 
+Vertrauen und Diagnose (seit 01.11.2026): `/api/miner/<Adresse>/coinbase` baut aus der neuesten Blockvorlage
+dieselbe Coinbase wie ein echter Job (`MiningJob`, nicht registriert) und liefert sie dekodiert: Ausgänge mit
+Adresse, Betrag und Art (deine Adresse, Gebühr, Witness-Commitment), Gebührenregel (1,5 % nur mit
+`DEV_FEE_ADDRESS` und ab 50 TH/s, wie `StratumV1Client.noFee`), Roh-Hex, coinb1/coinb2 aus `mining.notify`,
+Merged-Mining-Tag und der von Doichain Core für die DOI-Adresse vorbereitete Aux-Block. „Mein Dashboard“ zeigt
+das als Karte „Nachweis: dein Block zahlt an dich“. Je Session zählt der Stratum-Client angenommene, veraltete,
+doppelte und zu niedrige Shares (`client_entity`: `sharesAccepted`, `sharesStale`, `sharesDuplicate`,
+`sharesLowDiff`, `lastRejectAt`, `lastRejectReason`, geschrieben mit dem Heartbeat), die Gerätekachel warnt ab
+2 % Ablehnungen. Die Pool-Seite zeigt den „Closest Call des Monats“ (beste Shares des UTC-Kalendermonats aus
+`top_share_entity`, Feld `monthly` in `/api/stats`) samt Vormonatssieger. `/status` zeigt Health, Nodes,
+Verfügbarkeit aus den eigenen 5-Minuten-Messpunkten (`/api/stats/history`, fehlende Fenster = Ausfall) und
+den Text zu Gebühr (`feePercent` in `/api/stats`) und Finanzierung; `/doi` erklärt, was man mit DOI macht.
+Homescreen-App: `web/public/manifest.json`, Icons unter `web/public/icons` (aus dem Logo mit resvg
+gerendert), `sw.js` hält nur `offline.html` vor, Caddy liefert diese Dateien ohne Cache aus.
+
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 
 ## Rechtstexte

@@ -50,7 +50,7 @@
     # gebaute Assets tragen einen Hash im Namen, index.html und config.js müssen frisch bleiben
     @assets path /assets/*
     header @assets Cache-Control "public, max-age=31536000, immutable"
-    @fresh path / /index.html /config.js
+    @fresh path / /index.html /config.js /sw.js /manifest.json /offline.html
     header @fresh Cache-Control "no-cache"
 
     header {

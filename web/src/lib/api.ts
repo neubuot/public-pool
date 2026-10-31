@@ -72,11 +72,15 @@ export interface PoolStats {
     bestDifficultyUserAgent: string | null;
     highScores: { updatedAt: string, bestDifficulty: number, bestDifficultyUserAgent: string }[];
     topShares: TopShare[];
+    /** closest calls of the current month (UTC) and the top of the month before */
+    monthly: { month: string, top: TopShare[], previous: { month: string, top: TopShare[] } };
     blocksFound: { BTC: { found: number, accepted: number }, DOI: { found: number, accepted: number } };
     recentBlocks: FoundBlock[];
     since: string;
     jobsActive: boolean;
     telegramBot: string | null;
+    /** configured pool fee in percent */
+    feePercent: number;
 }
 
 export interface StatsSnapshot {
@@ -134,6 +138,9 @@ export interface MinerWorker {
     lastSeen: string;
     online: boolean;
     doiAddress: string | null;
+    /** share diagnostics of the session */
+    shares: { accepted: number, stale: number, duplicate: number, lowDifficulty: number };
+    lastReject: { at: number, reason: string } | null;
 }
 
 export interface MinerInfo {
@@ -284,6 +291,42 @@ export interface WebhookList {
     webhooks: WebhookView[];
 }
 
+export interface CoinbaseOutput {
+    index: number;
+    value: number;
+    address: string | null;
+    kind: 'payout' | 'fee' | 'witness-commitment' | 'other';
+    yours: boolean;
+}
+export interface CoinbaseProof {
+    address: string;
+    network: string;
+    template: { height: number, ageMs: number, coinbaseValue: number, transactions: number };
+    fee: { address: string | null, percent: number, thresholdHashRate: number, hashRate: number };
+    outputs: CoinbaseOutput[];
+    coinbaseHex: string;
+    coinb1: string;
+    coinb2: string;
+    merkleBranches: number;
+    auxTag: boolean;
+    doichain: { enabled: boolean, address: string | null, block: { height: number, hash: string, coinbaseValue: number, chainId: number } | null, error: string | null };
+}
+export interface HealthNode {
+    reachable: boolean;
+    syncing?: boolean;
+    enabled?: boolean;
+    blocks: number | null;
+    publicHeight: number | null;
+    behind: number | null;
+}
+export interface Health {
+    ok: boolean;
+    time: string;
+    bitcoin: HealthNode;
+    doichain: HealthNode;
+    pool: { miners: number, hashRate: number, since: string };
+}
+
 async function parse<T>(response: Response): Promise<T> {
     let body: any = null;
     try {
@@ -348,6 +391,8 @@ export const api = {
     block: (chain: Chain, id: string) => get<BlockDetail>(`/explorer/${chain.toLowerCase()}/block/${encodeURIComponent(id)}`),
     tx: (chain: Chain, txid: string) => get<TxDetail>(`/explorer/${chain.toLowerCase()}/tx/${encodeURIComponent(txid)}`),
     address: (chain: Chain, address: string) => get<AddressInfo>(`/explorer/${chain.toLowerCase()}/address/${encodeURIComponent(address)}`),
+    coinbase: (address: string, doi?: string) => get<CoinbaseProof>(`/miner/${encodeURIComponent(address)}/coinbase${doi ? `?doi=${encodeURIComponent(doi)}` : ''}`),
+    health: () => get<Health>('/health', 30000),
     webhooks: (address: string) => get<WebhookList>(`/webhooks/${encodeURIComponent(address)}`),
     addWebhook: (address: string, url: string, kind: WebhookKind) => send<WebhookList>('POST', `/webhooks/${encodeURIComponent(address)}`, { url, kind }),
     removeWebhook: (address: string, id: number) => send<WebhookList>('DELETE', `/webhooks/${encodeURIComponent(address)}/${id}`),

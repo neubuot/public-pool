@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 import { TopShareEntity } from './top-share.entity';
 
@@ -50,6 +50,11 @@ export class TopSharesService {
 
     public async overall(limit = 10): Promise<TopShareEntity[]> {
         return await this.repository.find({ order: { difficulty: 'DESC' }, take: limit });
+    }
+
+    /** best shares across all miners within [fromMs, toMs), the closest calls of a month */
+    public async between(fromMs: number, toMs: number, limit = 10): Promise<TopShareEntity[]> {
+        return await this.repository.find({ where: { time: Between(fromMs, toMs - 1) }, order: { difficulty: 'DESC' }, take: limit });
     }
 
     public async bestForAddress(address: string): Promise<TopShareEntity | null> {

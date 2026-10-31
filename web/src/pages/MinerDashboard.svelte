@@ -8,6 +8,7 @@
   import { t } from '../lib/i18n.svelte';
   import { clock, remember, stats } from '../lib/stats.svelte';
   import BlockFeed from '../components/BlockFeed.svelte';
+  import CoinbaseProof from '../components/CoinbaseProof.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import LineChart from '../components/LineChart.svelte';
   import LotteryCard from '../components/LotteryCard.svelte';
@@ -148,6 +149,15 @@
                 <span>{t('miner.uptime', { duration: fmtDuration((clock.now - (toMs(worker.startTime) ?? clock.now)) / 1000) })}</span>
                 <span class="mono" style="grid-column: 1 / -1; color: var(--muted)" title={worker.doiAddress ?? ''}>{worker.doiAddress ? `DOI ${shortHash(worker.doiAddress, 8, 6)}` : t('miner.doiDefault')}</span>
               </div>
+              {#if worker.shares != null}
+                {@const rejected = worker.shares.stale + worker.shares.duplicate + worker.shares.lowDifficulty}
+                {@const total = worker.shares.accepted + rejected}
+                <div style="font-size: 12px; color: var(--text-2)" title={t('diag.breakdown', { stale: fmtInt(worker.shares.stale), duplicate: fmtInt(worker.shares.duplicate), low: fmtInt(worker.shares.lowDifficulty) })}>
+                  {t('diag.shares', { accepted: fmtInt(worker.shares.accepted), rejected: fmtInt(rejected) })}
+                  {#if total >= 50 && rejected / total > 0.02}<span style="color: var(--red)"> · {t('diag.warn', { percent: fmtPercent(rejected / total, 1) })}</span>{/if}
+                  {#if worker.lastReject}<div class="muted-2">{t('diag.last', { reason: t(`diag.reason.${worker.lastReject.reason}`), ago: fmtAgo(worker.lastReject.at, clock.now) })}</div>{/if}
+                </div>
+              {/if}
             </article>
           {/each}
         </div>
@@ -195,6 +205,8 @@
       </section>
 
       <Notifications {address} telegramBot={snapshot?.pool.telegramBot ?? null} />
+
+      <CoinbaseProof {address} />
     </div>
   {/if}
 </main>

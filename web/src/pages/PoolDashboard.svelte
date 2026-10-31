@@ -4,7 +4,7 @@
 
   import { api, type History } from '../lib/api';
   import { fmtCoins, fmtDate, fmtDifficulty, fmtEur, fmtHashrate, fmtInt, fmtNum, fmtPercent, fmtSignedPercent } from '../lib/format';
-  import { t } from '../lib/i18n.svelte';
+  import { lang, t } from '../lib/i18n.svelte';
   import { stats } from '../lib/stats.svelte';
   import BlockFeed from '../components/BlockFeed.svelte';
   import ChainCard from '../components/ChainCard.svelte';
@@ -19,6 +19,12 @@
   let history = $state<History | null>(null);
   let historyError = $state<string | null>(null);
   let networkChain = $state<'DOI' | 'BTC'>('DOI');
+
+  /** "2026-10" → "Oktober 2026" / "October 2026" */
+  function monthName(month: string): string {
+    const date = new Date(`${month}-01T00:00:00Z`);
+    return Number.isNaN(date.getTime()) ? month : date.toLocaleDateString(lang.current === 'de' ? 'de-DE' : 'en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
 
   async function loadHistory() {
     try {
@@ -149,6 +155,37 @@
       <section class="card span4" aria-label={t('pool.blockFeed')} style="display: flex; flex-direction: column; gap: 14px">
         <BlockFeed blocks={snapshot.pool.recentBlocks} totals={{ BTC: snapshot.pool.blocksFound.BTC.accepted, DOI: snapshot.pool.blocksFound.DOI.accepted }} title={t('pool.blockFeed')} subsidy={{ BTC: snapshot.bitcoin.blockSubsidy, DOI: snapshot.doichain.blockSubsidy }} />
       </section>
+
+      {#if snapshot.pool.monthly}
+        <section class="card span12" aria-label={t('pool.monthly')}>
+          <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap">
+            <div class="label">{t('pool.monthly')} · {monthName(snapshot.pool.monthly.month)}</div>
+            <span class="muted" style="font-size: 12.5px">{t('pool.monthlyHint')}</span>
+          </div>
+          {#if snapshot.pool.monthly.top.length === 0}
+            <p class="muted" style="margin-top: 10px; font-size: 13px">{t('pool.monthlyNone')}</p>
+          {:else}
+            <ol class="mono monthly">
+              {#each snapshot.pool.monthly.top.slice(0, 5) as share, i (i)}
+                <li>
+                  <span class="muted-2 rank">{i + 1}.</span>
+                  <span class="doi diff">{fmtDifficulty(share.difficulty)}</span>
+                  <span class="muted pct">{snapshot.doichain.difficulty ? fmtPercent(share.difficulty / snapshot.doichain.difficulty, 2) : '–'}</span>
+                  <span class="who">{#if share.address}<a href={`/d/${share.address}`} style="color: inherit">{share.worker}</a>{:else}{share.worker}{/if}{#if share.userAgent} <span class="muted-2">· {share.userAgent}</span>{/if}</span>
+                  <span class="muted-2 when">{fmtDate(share.time)}</span>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+          <p class="muted-2" style="margin-top: 10px; font-size: 12.5px">
+            {#if snapshot.pool.monthly.previous.top.length > 0}
+              {t('pool.monthlyPrevious', { month: monthName(snapshot.pool.monthly.previous.month), worker: snapshot.pool.monthly.previous.top[0].worker, difficulty: fmtDifficulty(snapshot.pool.monthly.previous.top[0].difficulty) })}
+            {:else}
+              {t('pool.monthlyPreviousNone', { month: monthName(snapshot.pool.monthly.previous.month) })}
+            {/if}
+          </p>
+        </section>
+      {/if}
 
       <section class="card span12 tiles" aria-label={t('pool.network')}>
         <div>

@@ -14,10 +14,12 @@
   import Home from './pages/Home.svelte';
   import MinerDashboard from './pages/MinerDashboard.svelte';
   import NotFound from './pages/NotFound.svelte';
+  import Doi from './pages/Doi.svelte';
   import Integrations from './pages/Integrations.svelte';
   import PoolDashboard from './pages/PoolDashboard.svelte';
   import ShareBest from './pages/ShareBest.svelte';
   import ShareCard from './pages/ShareCard.svelte';
+  import Status from './pages/Status.svelte';
 
   const routes: { pattern: string, component: any }[] = [
     { pattern: '/', component: Home },
@@ -25,6 +27,8 @@
     { pattern: '/blocks', component: Blocks },
     { pattern: '/d/:address', component: MinerDashboard },
     { pattern: '/integrations', component: Integrations },
+    { pattern: '/status', component: Status },
+    { pattern: '/doi', component: Doi },
     { pattern: '/explorer', component: Explorer },
     { pattern: '/explorer/:chain/block/:id', component: ExplorerBlock },
     { pattern: '/explorer/:chain/tx/:txid', component: ExplorerTx },

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B0F14">
+  <title>NerdPool · offline</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0B0F14; color: #E6EDF3; font: 15px/1.5 Inter, system-ui, sans-serif; }
+    main { text-align: center; padding: 24px; max-width: 420px; }
+    .logo { width: 56px; height: 56px; border: 2px solid #38BDF8; border-radius: 14px; display: inline-grid; place-items: center; margin-bottom: 18px; }
+    h1 { font-size: 20px; margin: 0 0 8px; letter-spacing: .12em; }
+    p { color: #9AAABB; margin: 0 0 18px; }
+    button { height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #38BDF8; color: #0B0F14; font-weight: 600; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="logo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg></div>
+    <h1>NERDPOOL</h1>
+    <p>Keine Verbindung zum Pool. Deine Miner laufen trotzdem weiter, das Dashboard braucht nur gerade kein Netz.<br>No connection to the pool. Your miners keep running, only the dashboard needs the network.</p>
+    <button type="button" onclick="location.reload()">Erneut versuchen · Retry</button>
+  </main>
+</body>
+</html>

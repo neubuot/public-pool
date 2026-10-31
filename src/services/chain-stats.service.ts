@@ -6,6 +6,7 @@ import { BlocksService } from '../ORM/blocks/blocks.service';
 import { ChainSampleService } from '../ORM/chain-sample/chain-sample.service';
 import { ClientService } from '../ORM/client/client.service';
 import { TopSharesService } from '../ORM/top-shares/top-shares.service';
+import { monthRanges } from '../utils/months';
 import { BitcoinRpcService } from './bitcoin-rpc.service';
 import { DoichainRpcService } from './doichain-rpc.service';
 import { PoolEventsService } from './pool-events.service';
@@ -90,12 +91,16 @@ export interface PoolStats {
     highScores: { updatedAt: string, bestDifficulty: number, bestDifficultyUserAgent: string }[];
     /** best shares across all miners, newest record wins ties */
     topShares: TopShareSummary[];
+    /** the closest calls of the current calendar month (UTC) and the top of the month before */
+    monthly: { month: string; top: TopShareSummary[]; previous: { month: string; top: TopShareSummary[] } };
     blocksFound: { BTC: { found: number, accepted: number }, DOI: { found: number, accepted: number } };
     recentBlocks: FoundBlockSummary[];
     since: string;
     jobsActive: boolean;
     /** Telegram bot for block notifications (TELEGRAM_BOT_USERNAME), null when none */
     telegramBot: string | null;
+    /** pool fee in percent as configured (DEV_FEE_ADDRESS set: 1.5 above 50 TH/s, otherwise 0) */
+    feePercent: number;
 }
 
 export interface StatsSnapshot {
@@ -293,9 +298,16 @@ export class ChainStatsService implements OnModuleInit {
         const userAgents = await this.clientService.getUserAgents();
         const highScores = await this.addressSettingsService.getHighScores();
         const blocks = await this.blocksService.getRecentBlocks(500);
-        const topShares = (await this.topSharesService.overall(10)).map(share => ({
+        const summarize = (rows: { address: string; worker: string; userAgent: string | null; difficulty: number; time: number }[]): TopShareSummary[] => rows.map(share => ({
             address: share.address, worker: share.worker, userAgent: share.userAgent ?? null, difficulty: share.difficulty, time: share.time
         }));
+        const topShares = summarize(await this.topSharesService.overall(10));
+        const months = monthRanges();
+        const monthly = {
+            month: months.current.key,
+            top: summarize(await this.topSharesService.between(months.current.fromMs, months.current.toMs, 10)),
+            previous: { month: months.previous.key, top: summarize(await this.topSharesService.between(months.previous.fromMs, months.previous.toMs, 3)) }
+        };
         const telegramBot: string | null = this.configService.get('TELEGRAM_BOT_USERNAME') || null;
         const hasBot = `${this.configService.get('TELEGRAM_BOT_TOKEN') ?? ''}`.length > 0;
 
@@ -323,6 +335,7 @@ export class ChainStatsService implements OnModuleInit {
             bestDifficultyUserAgent: best?.bestDifficultyUserAgent ?? null,
             highScores,
             topShares,
+            monthly,
             blocksFound,
             recentBlocks: blocks.slice(0, 10).map(block => ({
                 chain: block.chain,
@@ -336,7 +349,8 @@ export class ChainStatsService implements OnModuleInit {
             })),
             since: this.uptime.toISOString(),
             jobsActive: this.bitcoinRpcService.syncing === false,
-            telegramBot: hasBot ? (telegramBot?.replace(/^@/, '') ?? null) : null
+            telegramBot: hasBot ? (telegramBot?.replace(/^@/, '') ?? null) : null,
+            feePercent: `${this.configService.get('DEV_FEE_ADDRESS') ?? ''}`.trim().length > 0 ? 1.5 : 0
         };
     }
 

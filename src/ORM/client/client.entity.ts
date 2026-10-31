@@ -41,5 +41,25 @@ export class ClientEntity extends TrackedEntity {
     @Column({ length: 90, type: 'varchar', nullable: true })
     doiAddress: string;
 
+    /** share diagnostics of this session, written with the heartbeat */
+    @Column({ type: 'integer', default: 0 })
+    sharesAccepted: number;
+
+    @Column({ type: 'integer', default: 0 })
+    sharesStale: number;
+
+    @Column({ type: 'integer', default: 0 })
+    sharesDuplicate: number;
+
+    @Column({ type: 'integer', default: 0 })
+    sharesLowDiff: number;
+
+    /** unix time in milliseconds of the last rejected share, null when none */
+    @Column({ type: 'integer', nullable: true })
+    lastRejectAt: number | null;
+
+    @Column({ length: 32, type: 'varchar', nullable: true })
+    lastRejectReason: string | null;
+
 }
 
