@@ -39,6 +39,8 @@ import { ValidateController } from './controllers/validate/validate.controller';
 import { TopSharesModule } from './ORM/top-shares/top-shares.module';
 import { ShareImageService } from './services/share-image.service';
 import { ShareController } from './controllers/share/share.controller';
+import { WorkerPresenceModule } from './ORM/worker-presence/worker-presence.module';
+import { WorkerAlertsService } from './services/worker-alerts.service';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -49,7 +51,8 @@ const ORMModules = [
     RpcBlocksModule,
     ExternalSharesModule,
     ChainSampleModule,
-    TopSharesModule
+    TopSharesModule,
+    WorkerPresenceModule
 ]
 
 @Module({
@@ -90,6 +93,7 @@ const ORMModules = [
         AppService,
         StratumV1Service,
         TelegramService,
+        WorkerAlertsService,
         BitcoinRpcService,
         DoichainRpcService,
         NotificationService,

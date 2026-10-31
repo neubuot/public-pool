@@ -126,6 +126,16 @@ export class ClientService {
         })
     }
 
+    /** All sessions of an address, the ended ones (soft deleted, kept for a day) included. */
+    public async getByAddressWithDeleted(address: string): Promise<ClientEntity[]> {
+        return await this.clientRepository.find({
+            where: {
+                address
+            },
+            withDeleted: true
+        })
+    }
+
 
     public async getByName(address: string, clientName: string): Promise<ClientEntity[]> {
         return await this.clientRepository.find({

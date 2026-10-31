@@ -15,5 +15,8 @@ export class TelegramSubscriptionsEntity extends TrackedEntity {
     @Column()
     telegramChatId: number;
 
+    /** messages when a worker of this address goes offline or comes back (/offline on|off) */
+    @Column({ default: true })
+    offlineAlerts: boolean;
 
 }

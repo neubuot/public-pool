@@ -4,7 +4,9 @@ import axios, { AxiosInstance } from 'axios';
 import { validate } from 'bitcoin-address-validation';
 import { Block } from 'bitcoinjs-lib';
 
+import { ClientService } from '../ORM/client/client.service';
 import { TelegramSubscriptionsService } from '../ORM/telegram-subscriptions/telegram-subscriptions.service';
+import { composeStatus, offlineAfterMinutes, parseCommand, shortAddress } from '../utils/worker-presence';
 
 
 @Injectable()
@@ -18,7 +20,8 @@ export class TelegramService implements OnModuleInit {
 
     constructor(
         private readonly configService: ConfigService,
-        private readonly telegramSubscriptionsService: TelegramSubscriptionsService
+        private readonly telegramSubscriptionsService: TelegramSubscriptionsService,
+        private readonly clientService: ClientService,
     ) {
         const token: string | null = this.configService.get('TELEGRAM_BOT_TOKEN');
         if (token == null || token.length < 1) {
@@ -31,6 +34,11 @@ export class TelegramService implements OnModuleInit {
         console.log('Telegram bot init');
 
 
+    }
+
+    /** true when a bot token is configured */
+    public get active(): boolean {
+        return this.bot != null;
     }
 
     async onModuleInit(): Promise<void> {
@@ -59,7 +67,7 @@ export class TelegramService implements OnModuleInit {
 
         const text = `⛏️ Bitcoin block found! Height ${height}, result: ${message}\n${this.publicUrl()}/explorer/btc/block/${block.getId()}`;
         const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
-        await Promise.all(subscribers.map(subscriber => this.sendMessage(subscriber.telegramChatId, text)));
+        await Promise.all(subscribers.map(subscriber => this.notifyChat(subscriber.telegramChatId, text)));
         await this.announce(text);
     }
 
@@ -73,9 +81,23 @@ export class TelegramService implements OnModuleInit {
             ? `⛏️ Doichain block found! Height ${height}, worker ${worker}\n${base}/explorer/doi/block/${hash}\nShare card: ${base}/s/doi/${height}`
             : `Doichain block ${height} from worker ${worker} was rejected: ${message}`;
         const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
-        await Promise.all(subscribers.map(subscriber => this.sendMessage(subscriber.telegramChatId, text)));
+        await Promise.all(subscribers.map(subscriber => this.notifyChat(subscriber.telegramChatId, text)));
         if (accepted) {
             await this.announce(text);
+        }
+    }
+
+    /** Sends a message to one chat; a failure (bot blocked, chat gone) is logged, not thrown. */
+    public async notifyChat(chatId: number | string, text: string): Promise<boolean> {
+        if (this.bot == null) {
+            return false;
+        }
+        try {
+            await this.sendMessage(chatId, text);
+            return true;
+        } catch (e) {
+            console.error(`Telegram message to ${chatId} failed:`, e?.response?.data?.description ?? e?.message ?? e);
+            return false;
         }
     }
 
@@ -85,16 +107,16 @@ export class TelegramService implements OnModuleInit {
         if (chatId == null || `${chatId}`.length === 0) {
             return;
         }
-        try {
-            await this.sendMessage(chatId, text);
-        } catch (e) {
-            console.error('Telegram announcement failed:', e?.response?.data?.description ?? e?.message ?? e);
-        }
+        await this.notifyChat(chatId, text);
     }
 
-    private publicUrl(): string {
+    public publicUrl(): string {
         const configured: string | null = this.configService.get('POOL_PUBLIC_URL');
         return (configured != null && configured.length > 0 ? configured : 'https://pool.doilabs.org').replace(/\/+$/, '');
+    }
+
+    private offlineMinutes(): number {
+        return offlineAfterMinutes(this.configService.get('OFFLINE_ALERT_MINUTES'));
     }
 
     private async pollUpdates(): Promise<boolean> {
@@ -108,7 +130,11 @@ export class TelegramService implements OnModuleInit {
 
             for (const update of response.data.result ?? []) {
                 this.updateOffset = update.update_id + 1;
-                await this.handleMessage(update.message);
+                try {
+                    await this.handleMessage(update.message);
+                } catch (e) {
+                    console.error('Telegram command failed:', e?.response?.data?.description ?? e?.message ?? e);
+                }
             }
             return true;
         } catch (e) {
@@ -123,29 +149,79 @@ export class TelegramService implements OnModuleInit {
     }
 
     private async handleMessage(msg: any) {
-        if (msg?.text == null) {
+        const command = parseCommand(msg?.text);
+        if (command == null || msg?.chat?.id == null) {
             return;
         }
+        const chatId: number = msg.chat.id;
 
-        if (msg.text.startsWith('/subscribe')) {
-            const address = msg.text.split('/subscribe ')[1];
-            if (validate(address) == false) {
-                await this.sendMessage(msg.chat.id, 'Invalid address.');
+        switch (command.name) {
+            case 'subscribe': {
+                const address = command.args[0];
+                if (address == null || validate(address) == false) {
+                    await this.sendMessage(chatId, 'Invalid address. Send /subscribe <your BTC address>, the one you use as stratum user name.');
+                    return;
+                }
+                const created = await this.telegramSubscriptionsService.saveSubscription(chatId, address);
+                await this.sendMessage(chatId, created
+                    ? `Subscribed! You will hear about blocks found with ${shortAddress(address)} and when one of its workers goes offline or comes back`
+                    + ` (${this.offlineMinutes()} minutes without a sign of life, /offline off to mute those).`
+                    : `Already subscribed to ${shortAddress(address)}.`);
                 return;
             }
-            await this.telegramSubscriptionsService.saveSubscription(msg.chat.id, address);
-            await this.sendMessage(msg.chat.id, 'Subscribed!');
-            return;
+            case 'unsubscribe': {
+                const address = command.args[0];
+                if (address == null || validate(address) == false) {
+                    await this.sendMessage(chatId, 'Send /unsubscribe <BTC address>.');
+                    return;
+                }
+                const removed = await this.telegramSubscriptionsService.removeSubscription(chatId, address);
+                await this.sendMessage(chatId, removed > 0 ? `Unsubscribed from ${shortAddress(address)}.` : `No subscription for ${shortAddress(address)}.`);
+                return;
+            }
+            case 'offline': {
+                const mode = command.args[0]?.toLowerCase();
+                const address = command.args[1];
+                if ((mode !== 'on' && mode !== 'off') || (address != null && validate(address) == false)) {
+                    await this.sendMessage(chatId, 'Send /offline off to mute offline alerts, /offline on to get them again. Add a BTC address to change only that one.');
+                    return;
+                }
+                const changed = await this.telegramSubscriptionsService.setOfflineAlerts(chatId, mode === 'on', address);
+                await this.sendMessage(chatId, changed > 0
+                    ? `Offline alerts ${mode} for ${address != null ? shortAddress(address) : 'all your addresses'}.`
+                    : 'No subscription found. Send /subscribe <your BTC address> first.');
+                return;
+            }
+            case 'status': {
+                const subscriptions = await this.telegramSubscriptionsService.forChat(chatId);
+                if (subscriptions.length === 0) {
+                    await this.sendMessage(chatId, 'No subscriptions. Send /subscribe <your BTC address>.');
+                    return;
+                }
+                const now = Date.now();
+                const offlineAfterMs = Math.max(1, this.offlineMinutes()) * 60_000;
+                const blocks = await Promise.all(subscriptions.map(async subscription => composeStatus(
+                    subscription.address,
+                    await this.clientService.getByAddressWithDeleted(subscription.address),
+                    now, offlineAfterMs, subscription.offlineAlerts !== false
+                )));
+                await this.sendMessage(chatId, blocks.join('\n\n'));
+                return;
+            }
+            case 'start':
+            case 'help': {
+                await this.sendMessage(chatId,
+                    'NerdPool bot. The address is the one you use as stratum user name.\n\n'
+                    + '/subscribe <BTC address> – messages when a worker of this address finds a Bitcoin or Doichain block, goes offline or comes back\n'
+                    + '/unsubscribe <BTC address>\n'
+                    + '/offline off [BTC address] – no offline and back online messages, /offline on to get them again\n'
+                    + '/status – your addresses and their workers\n\n'
+                    + `A worker counts as offline after ${this.offlineMinutes()} minutes without shares or heartbeat.`);
+                return;
+            }
+            default:
+                await this.sendMessage(chatId, 'Unknown command, send /help.');
         }
-
-        if (msg.text.startsWith('/start') || msg.text.startsWith('/help')) {
-            await this.sendMessage(msg.chat.id,
-                'Welcome to the NerdPool bot. Send /subscribe <your BTC address> to get a message whenever one of your miners '
-                + 'finds a Bitcoin or Doichain block. The address is the one you use as stratum user name.');
-            return;
-        }
-
-        console.log(msg);
     }
 
     private async sendMessage(chatId: number | string, text: string) {

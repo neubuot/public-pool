@@ -87,10 +87,20 @@ Adresse (Tabelle `top_share_entity`, 25 je Adresse) füllen „Closest Calls“ 
 Shares“ auf der Pool-Seite. Explorer, Teilen-Karten, Adressprüfung und Miner-Abfragen sind je Client-Adresse
 gedrosselt (HTTP 429), Caddy setzt dafür `X-Forwarded-For`, der Pool liest sie mit `TRUST_PROXY=true`.
 
-Telegram: Miner abonnieren Blockfunde beim Bot mit `/subscribe <BTC-Adresse>`, das Dashboard zeigt den Bot
+Telegram: Miner abonnieren ihre BTC-Adresse beim Bot mit `/subscribe <BTC-Adresse>`, das Dashboard zeigt den Bot
 aus `TELEGRAM_BOT_USERNAME`. Gemeldet werden Bitcoin- und Doichain-Blöcke mit Link in den Explorer und auf die
 Teilen-Seite. `TELEGRAM_ANNOUNCE_CHAT_ID` (Chat- oder Kanal-ID, Bot als Mitglied) meldet zusätzlich jeden
 angenommenen Block an alle.
+
+Offline-Alarm (seit 31.10.2026): Der Pool prüft jede Minute die abonnierten Adressen und meldet einen Worker, der
+`OFFLINE_ALERT_MINUTES` (pool.env, Standard 10, 0 schaltet ab) lang weder Share noch Heartbeat geschickt hat, und
+später seine Rückkehr samt Dauer; mehrere Worker einer Adresse kommen in einer Nachricht. Verbundene Miner senden
+auch ohne Shares jede Minute einen Heartbeat, ein untätiges Gerät gilt also als online, ein getrenntes nicht. Der
+letzte gemeldete Zustand steht je Adresse und Worker in `worker_presence_entity` (30 Tage nach dem letzten
+Lebenszeichen gelöscht); beim ersten Durchlauf für eine Adresse wird nur der Stand erfasst, ohne Nachricht, und in
+den ersten `OFFLINE_ALERT_MINUTES` nach einem Neustart des Pools wird nichts gemeldet, weil die Miner sich erst
+wieder verbinden. Bot-Befehle: `/subscribe`, `/unsubscribe`, `/offline on|off [Adresse]` (Spalte `offlineAlerts`
+im Abonnement), `/status` (Worker je Adresse aus den Sessions der letzten 24 Stunden), `/help`.
 
 Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
 
