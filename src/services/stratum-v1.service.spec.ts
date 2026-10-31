@@ -55,8 +55,9 @@ describe('StratumV1Service', () => {
         expect(consoleLogSpy).toHaveBeenCalledWith('Master process skipping Stratum socket listeners');
     });
 
-    it('should start the Stratum listener in worker processes', async () => {
+    it('should start the Stratum listener in worker processes without clearing clients', async () => {
         process.env.MASTER = 'false';
+        process.env.NODE_APP_INSTANCE = '1';
         process.env.STRATUM_PORT = '3334';
         const startSocketServerSpy = jest.spyOn(service as any, 'startSocketServer').mockImplementation(() => undefined);
 
@@ -64,6 +65,19 @@ describe('StratumV1Service', () => {
         jest.advanceTimersByTime(10000);
 
         expect(clientService.deleteAll).not.toHaveBeenCalled();
+        expect(startSocketServerSpy).toHaveBeenCalledWith(3334);
+    });
+
+    it('should clear stale clients and listen when running as a single process', async () => {
+        delete process.env.MASTER;
+        delete process.env.NODE_APP_INSTANCE;
+        process.env.STRATUM_PORT = '3334';
+        const startSocketServerSpy = jest.spyOn(service as any, 'startSocketServer').mockImplementation(() => undefined);
+
+        await service.onModuleInit();
+        jest.advanceTimersByTime(10000);
+
+        expect(clientService.deleteAll).toHaveBeenCalled();
         expect(startSocketServerSpy).toHaveBeenCalledWith(3334);
     });
 
