@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
 
   import { api, type AddressCheck, type MinerInfo } from '../lib/api';
-  import { poolDomain, stratumPort, stratumUrl } from '../lib/config';
+  import { poolDomain, stratumPort, stratumTlsUrl, stratumUrl } from '../lib/config';
   import { fmtAgo, fmtHashrate, fmtPercent, shortHash } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import { clock, remember, saved, stats } from '../lib/stats.svelte';
@@ -156,6 +156,10 @@
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px">
           <div class="row"><span class="label key">{t('home.stratumUrl')}</span><span class="mono val">{stratumUrl}</span><CopyButton text={stratumUrl} label={t('home.copy')} /></div>
           <div class="row"><span class="label key">{t('home.port')}</span><span class="mono val">{stratumPort}</span><CopyButton text={String(stratumPort)} label={t('home.copy')} /></div>
+          {#if stratumTlsUrl}
+            <div class="row"><span class="label key">{t('home.tls')}</span><span class="mono val">{stratumTlsUrl}</span><CopyButton text={stratumTlsUrl} label={t('home.copy')} /></div>
+            <p class="muted-2" style="font-size: 12px; margin: -2px 0 0">{t('home.tlsHint')}</p>
+          {/if}
           <div class="row"><span class="label key">{t('home.user')}</span><span class="mono val">{#if username}{btcTrim}<span class="doi">.{workerClean}</span>{:else}<span class="muted-2">{t('home.fillFirst')}</span>{/if}</span><CopyButton text={username} label={t('home.copy')} disabled={!username} /></div>
           <div class="row"><span class="label key">{t('home.password')}</span><span class="mono val">{#if password}{password}{:else}<span class="muted-2">{doiTrim.length === 0 ? t('home.doiAddress') : t('home.doiBad')}</span>{/if}</span><CopyButton text={password} label={t('home.copy')} disabled={!password} /></div>
         </div>

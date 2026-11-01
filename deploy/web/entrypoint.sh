@@ -6,10 +6,15 @@ set -eu
 : "${POOL_DOMAIN:?POOL_DOMAIN fehlt}"
 STRATUM_PORT=${STRATUM_PORT:-3333}
 BETA=${POOL_BETA:-true}
+# stratum+ssl-Port fürs Dashboard, leer oder 0 heißt: keinen anzeigen
+case "${STRATUM_TLS_PORT:-}" in
+    ''|0) TLS_PORT_JSON=null ;;
+    *) TLS_PORT_JSON=${STRATUM_TLS_PORT} ;;
+esac
 
 # index.html lädt /config.js vor der App; die API ist relativ unter /api (Caddy reicht sie an den Pool weiter)
 cat > /srv/ui/config.js <<EOF
-window.__NERDPOOL__ = {"domain":"${POOL_DOMAIN}","stratumPort":${STRATUM_PORT},"beta":${BETA}};
+window.__NERDPOOL__ = {"domain":"${POOL_DOMAIN}","stratumPort":${STRATUM_PORT},"stratumTlsPort":${TLS_PORT_JSON},"beta":${BETA}};
 EOF
 
 # Domain in die Rechtstexte eintragen (Kopie, damit ein Bind-Mount der Vorlagen schreibgeschützt bleiben kann)

@@ -59,6 +59,7 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 | Feld | Wert |
 | --- | --- |
 | Stratum-URL | `stratum+tcp://pool.doilabs.org` |
+| Stratum mit TLS | `stratum+ssl://pool.doilabs.org:3443` |
 | Port | `3333` |
 | Benutzername | `<BTC-Adresse>.<Gerätename>` |
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
@@ -137,7 +138,16 @@ den Text zu Gebühr (`feePercent` in `/api/stats`) und Finanzierung; `/doi` erkl
 Homescreen-App: `web/public/manifest.json`, Icons unter `web/public/icons` (aus dem Logo mit resvg
 gerendert), `sw.js` hält nur `offline.html` vor, Caddy liefert diese Dateien ohne Cache aus.
 
-Einen TLS-Stratum-Port gibt es in der Beta noch nicht, nur `stratum+tcp`.
+stratum+ssl (seit 01.11.2026): Der Pool öffnet zusätzlich `STRATUM_TLS_PORT` (pool.env, 3443, 0 schaltet ab) als
+TLS-Server mit demselben Stratum-Protokoll. Das Zertifikat ist das Let's-Encrypt-Zertifikat von Caddy: das Volume
+`caddy-data` hängt nur lesend unter `/certs` im Pool-Container, `STRATUM_TLS_CERT_DIR=/certs/caddy/certificates`,
+die Domain kommt aus `POOL_PUBLIC_URL` (oder `STRATUM_TLS_DOMAIN`), alternativ `STRATUM_TLS_CERT`/`STRATUM_TLS_KEY`
+als feste Dateien. Fehlt das Zertifikat beim Start (Caddy holt es gerade erst), versucht der Pool es jede Minute
+erneut; danach liest er die Dateien alle zehn Minuten neu und tauscht ein erneuertes Zertifikat ohne Neustart ein
+(`setSecureContext`). Compose veröffentlicht `${STRATUM_TLS_PORT:-3443}:3443`, die Firewall braucht
+`ufw allow 3443/tcp`. Das Dashboard zeigt `stratum+ssl://<Domain>:3443` auf der Startseite, wenn `STRATUM_TLS_PORT`
+im Web-Container gesetzt ist (config.js). Prüfen: `openssl s_client -connect pool.doilabs.org:3443 -servername
+pool.doilabs.org` und ein `mining.subscribe` über die TLS-Verbindung.
 
 ## Rechtstexte
 
@@ -166,6 +176,6 @@ hostworld voraus, den gibt es im Kundenmenü. Die Texte sind ein Entwurf für de
 
 - Test mit echten Bitaxe und NerdMinern über mehrere Tage (Version-Rolling, Vardiff, Reconnects)
 - Dashboard mit DOI-Blöcken und Onboarding (Phase 2 des Konzepts)
-- TLS-Stratum-Port, Rate-Limits je IP auf dem Stratum-Port
+- Rate-Limits je IP auf dem Stratum-Port
 - Auftragsverarbeitungsvertrag mit dem Hoster
 - Anwaltliche Kurzprüfung der Rechtstexte und des nicht verwahrenden Modells

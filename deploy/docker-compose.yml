@@ -118,8 +118,12 @@ services:
     ports:
       # Stratum nach außen, die API (3334) bleibt im Docker-Netz und wird von Caddy unter /api ausgeliefert
       - "${STRATUM_PORT:-3333}:3333"
+      # stratum+ssl mit dem Let's-Encrypt-Zertifikat von Caddy (Port 3443 im Container, STRATUM_TLS_PORT in pool.env)
+      - "${STRATUM_TLS_PORT:-3443}:3443"
     volumes:
       - pool-db:/public-pool/DB
+      # Caddys Zertifikatsspeicher, nur lesend: der Pool nimmt daraus das Zertifikat für stratum+ssl
+      - caddy-data:/certs:ro
     logging:
       driver: json-file
       options:
@@ -139,6 +143,7 @@ services:
     environment:
       - POOL_DOMAIN=${POOL_DOMAIN:?POOL_DOMAIN in .env setzen}
       - STRATUM_PORT=${STRATUM_PORT:-3333}
+      - STRATUM_TLS_PORT=${STRATUM_TLS_PORT:-3443}
       - POOL_BETA=${POOL_BETA:-true}
       - ACME_EMAIL=${ACME_EMAIL:-}
     ports:
