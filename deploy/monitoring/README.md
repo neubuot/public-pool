@@ -1,11 +1,13 @@
 # Überwachung mit Uptime Kuma
 
-Vier Monitore reichen für die Beta. Sie sind seit 30.10.2026 in der Kuma-Instanz auf der Docker-VM angelegt
-(Gruppe „DOI Labs“, Benachrichtigungen „ntfy DOI Labs“ und „ntfy Alles“) und als Kacheln im NOC-Dashboard.
+Fünf Monitore reichen für die Beta. Vier sind seit 30.10.2026 in der Kuma-Instanz auf der Docker-VM angelegt
+(Gruppe „DOI Labs“, Benachrichtigungen „ntfy DOI Labs“ und „ntfy Alles“) und als Kacheln im NOC-Dashboard, der
+Monitor für stratum+ssl seit 01.11.2026 auf demselben Weg.
 
 | Name in Kuma | Typ | Ziel | Intervall | Einstellungen |
 | --- | --- | --- | --- | --- |
 | NerdPool Stratum (pool.doilabs.org:3333) | TCP Port | `pool.doilabs.org`, Port 3333 | 60 s | Wiederholungen 2, damit ein Neustart des Pools nicht alarmiert |
+| NerdPool Stratum TLS (pool.doilabs.org:3443) | TCP Port | `pool.doilabs.org`, Port 3443 | 60 s | Wiederholungen 2; prüft nur die TCP-Verbindung, nicht das Zertifikat (das meldet der Dashboard-Monitor) |
 | NerdPool Health (pool.doilabs.org/api/health) | HTTP(s) Keyword | `https://pool.doilabs.org/api/health` | 60 s | Schlüsselwort `"ok":true`, Zertifikatsablauf-Warnung; **pausiert, bis Bitcoin Core den Erstabgleich abgeschlossen hat** |
 | NerdPool Dashboard (pool.doilabs.org) | HTTP(s) | `https://pool.doilabs.org/` | 300 s | erwartet 200, Zertifikatsablauf-Warnung |
 | NerdPool Host (Ping 159.195.143.151) | Ping | Server-IP | 60 s | zeigt, ob Server oder nur Dienst weg ist |

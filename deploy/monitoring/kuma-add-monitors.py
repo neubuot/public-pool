@@ -34,6 +34,14 @@ def main() -> int:
             "maxretries": 2,
         },
         {
+            "type": MonitorType.PORT,
+            "name": "NerdPool Stratum TLS",
+            "hostname": domain,
+            "port": int(os.environ.get("STRATUM_TLS_PORT", "3443")),
+            "interval": 60,
+            "maxretries": 2,
+        },
+        {
             "type": MonitorType.KEYWORD,
             "name": "NerdPool Health",
             "url": f"https://{domain}/api/health",
