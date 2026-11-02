@@ -410,7 +410,7 @@ export class SyndicateService implements OnModuleInit, OnModuleDestroy {
             hashRate: online.reduce((acc, client) => acc + (client.hashRate ?? 0), 0),
             work,
             distribution: top,
-            othersPercent: Math.max(0, 1 - top.reduce((acc, t) => acc + t.percent, 0)),
+            othersPercent: weights.length > top.length ? Math.max(0, 1 - top.reduce((acc, t) => acc + t.percent, 0)) : 0,
             blocksFound: totals.blocks,
             paidOutDoi: totals.amount / COIN,
             membersPaid: totals.members,
