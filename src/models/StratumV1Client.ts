@@ -32,6 +32,7 @@ import { DoichainRpcService } from '../services/doichain-rpc.service';
 import { PoolEventsService } from '../services/pool-events.service';
 import { TopSharesService } from '../ORM/top-shares/top-shares.service';
 import { hashMeetsTarget } from './auxpow';
+import { SyndicateAuxBlock, SyndicateService } from '../services/syndicate.service';
 
 const TRUE_DIFF_ONE = 2.695953529101131e67;
 const BLOCKED_USER_AGENT_LOG_INTERVAL_MS = 60 * 1000;
@@ -49,6 +50,8 @@ export class StratumV1Client {
     private doiSubscription: Subscription;
     /** Doichain payout address for merged mining, null when this client mines Bitcoin only */
     private doiAddress: string = null;
+    /** syndicate mode: this session's Doichain rewards are shared with the other members */
+    private syndicate = false;
     private backgroundWork: NodeJS.Timeout[] = [];
 
     private statistics: StratumV1ClientStatistics;
@@ -87,7 +90,8 @@ export class StratumV1Client {
         private readonly externalSharesService: ExternalSharesService,
         private readonly doichainRpcService?: DoichainRpcService,
         private readonly poolEventsService?: PoolEventsService,
-        private readonly topSharesService?: TopSharesService
+        private readonly topSharesService?: TopSharesService,
+        private readonly syndicateService?: SyndicateService
     ) {
 
         this.socket.on('data', (data: Buffer) => {
@@ -427,7 +431,8 @@ export class StratumV1Client {
                 userAgent: this.clientSubscription?.userAgent ?? null,
                 difficulty: this.sessionDifficulty,
                 mergedMining: this.doiAddress != null,
-                doiAddress: this.doiAddress
+                doiAddress: this.doiAddress,
+                syndicate: this.syndicate
             }
         });
         // Register the client right away (not only with its first share) so the dashboard shows devices that
@@ -506,9 +511,11 @@ export class StratumV1Client {
         let auxBlock = null;
         if (this.doiAddress != null) {
             try {
-                auxBlock = await this.doichainRpcService.getAuxBlock(this.doiAddress);
+                auxBlock = this.syndicate
+                    ? await this.syndicateService.getAuxBlock(this.doiAddress)
+                    : await this.doichainRpcService.getAuxBlock(this.doiAddress);
             } catch (e) {
-                console.error(`createauxblock failed for ${this.doiAddress}, job without merged mining:`, e?.message ?? e);
+                console.error(`${this.syndicate ? 'syndicate block' : 'createauxblock'} failed for ${this.doiAddress}, job without merged mining:`, e?.message ?? e);
             }
         }
 
@@ -550,7 +557,8 @@ export class StratumV1Client {
                     userAgent: this.clientSubscription.userAgent,
                     startTime: new Date(),
                     bestDifficulty: 0,
-                    doiAddress: this.doiAddress
+                    doiAddress: this.doiAddress,
+                    syndicate: this.syndicate
                 });
             })();
         }
@@ -646,9 +654,18 @@ export class StratumV1Client {
                 data: { difficulty: this.sessionDifficulty, shareDifficulty: submissionDifficulty }
             });
 
+            if (this.syndicate && this.syndicateService != null) {
+                // the share's target difficulty is the work it stands for, the same measure the statistics use
+                this.syndicateService.recordShare(this.doiAddress, this.sessionDifficulty);
+            }
+
             // Merged mining: the same header hash may satisfy the (much lower) Doichain target.
             if (job.auxBlock != null && hashMeetsTarget(submissionHashBuffer, job.auxTarget)) {
-                await this.submitAuxPow(job, jobTemplate, versionMask, nonce, submission.extraNonce2, timestamp);
+                if (SyndicateService.isSyndicateBlock(job.auxBlock)) {
+                    await this.submitSyndicateBlock(job, jobTemplate, versionMask, nonce, submission.extraNonce2, timestamp);
+                } else {
+                    await this.submitAuxPow(job, jobTemplate, versionMask, nonce, submission.extraNonce2, timestamp);
+                }
             }
 
             if (submissionDifficulty >= jobTemplate.blockData.networkDifficulty) {
@@ -859,6 +876,7 @@ export class StratumV1Client {
      */
     private async resolveDoiAddress() {
         this.doiAddress = null;
+        this.syndicate = false;
         if (this.doichainRpcService == null || !this.doichainRpcService.enabled) {
             return;
         }
@@ -867,7 +885,9 @@ export class StratumV1Client {
         if (candidate != null) {
             if (await this.doichainRpcService.validateAddress(candidate)) {
                 this.doiAddress = candidate;
-                console.log(`Client ${this.extraNonceAndSessionId} merge mines Doichain to ${candidate}`);
+                // syndicate mode only with the miner's own address (the pool default stays solo)
+                this.syndicate = this.clientAuthorization.syndicate === true && this.syndicateService?.enabled === true;
+                console.log(`Client ${this.extraNonceAndSessionId} merge mines Doichain to ${candidate}${this.syndicate ? ' (syndicate)' : ''}`);
                 return;
             }
             console.warn(`Client ${this.extraNonceAndSessionId}: password '${candidate}' is not a Doichain address, using the pool default`);
@@ -898,6 +918,26 @@ export class StratumV1Client {
             blockData: { ...jobTemplate.blockData, clearJobs: false }
         };
         await this.sendNewMiningJob(refreshedJobTemplate);
+    }
+
+    /** A syndicate job hit the Doichain target: the whole block (with the proof) goes to the node via the service. */
+    private async submitSyndicateBlock(job: MiningJob, jobTemplate: IJobTemplate, versionMask: number, nonce: number, extraNonce2: string, timestamp: number) {
+        const block = job.auxBlock as SyndicateAuxBlock;
+        console.log(`!!! DOICHAIN SYNDICATE BLOCK FOUND !!! height ${block.height}, aux block ${block.hash}, ${block.members.length} members, worker ${this.clientAuthorization.worker}.${this.extraNonceAndSessionId}`);
+        try {
+            const auxPowHex = job.buildAuxPowHex(jobTemplate, versionMask, nonce, this.extraNonceAndSessionId, extraNonce2, timestamp);
+            const result = await this.syndicateService.submit(block, auxPowHex, {
+                address: this.clientAuthorization.address,
+                worker: this.clientAuthorization.worker,
+                sessionId: this.extraNonceAndSessionId
+            });
+            if (!result.accepted) {
+                console.error(`Doichain rejected the syndicate block ${block.hash}: ${result.message}`);
+            }
+        } catch (e) {
+            console.error('Syndicate block submission failed', e);
+            this.syndicateService.invalidate();
+        }
     }
 
     private async submitAuxPow(job: MiningJob, jobTemplate: IJobTemplate, versionMask: number, nonce: number, extraNonce2: string, timestamp: number) {

@@ -72,19 +72,47 @@ export class TelegramService implements OnModuleInit {
     }
 
     /** Merge mined Doichain block: the miner's subscribers (by Bitcoin address) and the announcement chat. */
-    public async notifyDoichainBlockFound(address: string, worker: string, height: number, hash: string, accepted: boolean, message: string) {
+    public async notifyDoichainBlockFound(address: string, worker: string, height: number, hash: string, accepted: boolean, message: string, syndicate?: { members: number, paidOut: number }) {
         if (this.bot == null) {
             return;
         }
         const base = this.publicUrl();
+        const shared = syndicate != null ? `\nSyndicate block: ${(syndicate.paidOut / 1e8).toFixed(2)} DOI shared among ${syndicate.members} members, see ${base}/syndicate` : '';
         const text = accepted
-            ? `⛏️ Doichain block found! Height ${height}, worker ${worker}\n${base}/explorer/doi/block/${hash}\nShare card: ${base}/s/doi/${height}`
+            ? `⛏️ Doichain block found! Height ${height}, worker ${worker}${shared}\n${base}/explorer/doi/block/${hash}\nShare card: ${base}/s/doi/${height}`
             : `Doichain block ${height} from worker ${worker} was rejected: ${message}`;
         const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
         await Promise.all(subscribers.map(subscriber => this.notifyChat(subscriber.telegramChatId, text)));
         if (accepted) {
             await this.announce(text);
         }
+    }
+
+    /** Sends a text to every subscriber of a Bitcoin address. */
+    public async notifyAddress(address: string, text: string): Promise<number> {
+        if (this.bot == null) {
+            return 0;
+        }
+        const subscribers = await this.telegramSubscriptionsService.getSubscriptions(address);
+        const results = await Promise.all(subscribers.map(subscriber => this.notifyChat(subscriber.telegramChatId, text)));
+        return results.filter(ok => ok).length;
+    }
+
+    /** Bitcoin addresses whose devices pay Doichain rewards to the given addresses (sessions of the last day). */
+    public async btcAddressesFor(doiAddresses: string[]): Promise<Map<string, string[]>> {
+        const result = new Map<string, string[]>();
+        const clients = await this.clientService.getByDoiAddresses(doiAddresses);
+        for (const client of clients) {
+            if (client.doiAddress == null) {
+                continue;
+            }
+            const list = result.get(client.doiAddress) ?? [];
+            if (!list.includes(client.address)) {
+                list.push(client.address);
+            }
+            result.set(client.doiAddress, list);
+        }
+        return result;
     }
 
     /** Sends a message to one chat; a failure (bot blocked, chat gone) is logged, not thrown. */

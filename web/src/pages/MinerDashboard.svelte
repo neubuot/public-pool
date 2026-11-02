@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
 
   import { api, type FoundBlock, type MinerInfo } from '../lib/api';
-  import { fmtAgo, fmtDate, fmtDifficulty, fmtDuration, fmtHashrate, fmtInt, fmtPercent, shortHash, toMs } from '../lib/format';
+  import { fmtAgo, fmtCoins, fmtDate, fmtDifficulty, fmtDuration, fmtHashrate, fmtInt, fmtPercent, shortHash, toMs } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import { clock, remember, stats } from '../lib/stats.svelte';
   import BlockFeed from '../components/BlockFeed.svelte';
@@ -82,7 +82,7 @@
   const doiTarget = $derived(snapshot?.doichain.difficulty ?? null);
   const btcTarget = $derived(snapshot?.bitcoin.difficulty ?? null);
   const best = $derived(miner?.bestDifficulty ?? 0);
-  const feed = $derived<FoundBlock[]>((miner?.blocks ?? []).map(b => ({ chain: b.chain, height: b.height, blockHash: b.blockHash, minerAddress: address, worker: b.worker, accepted: b.accepted, result: b.result, time: b.time })));
+  const feed = $derived<FoundBlock[]>((miner?.blocks ?? []).map(b => ({ chain: b.chain, height: b.height, blockHash: b.blockHash, minerAddress: address, worker: b.worker, accepted: b.accepted, result: b.result, time: b.time, syndicateMembers: b.syndicateMembers ?? null })));
   const totals = $derived({ BTC: feed.filter(b => b.chain === 'BTC' && b.accepted).length, DOI: feed.filter(b => b.chain === 'DOI' && b.accepted).length });
 
   function workerColor(name: string): string {
@@ -147,7 +147,7 @@
               <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; font-size: 12px; color: var(--text-2)">
                 <span>{t('miner.best', { difficulty: fmtDifficulty(worker.bestDifficulty) })}</span>
                 <span>{t('miner.uptime', { duration: fmtDuration((clock.now - (toMs(worker.startTime) ?? clock.now)) / 1000) })}</span>
-                <span class="mono" style="grid-column: 1 / -1; color: var(--muted)" title={worker.doiAddress ?? ''}>{worker.doiAddress ? `DOI ${shortHash(worker.doiAddress, 8, 6)}` : t('miner.doiDefault')}</span>
+                <span class="mono" style="grid-column: 1 / -1; color: var(--muted)" title={worker.doiAddress ?? ''}>{worker.doiAddress ? `DOI ${shortHash(worker.doiAddress, 8, 6)}` : t('miner.doiDefault')}{#if worker.syndicate} <span class="synbadge">{t('miner.syndicateBadge')}</span>{/if}</span>
               </div>
               {#if worker.shares != null}
                 {@const rejected = worker.shares.stale + worker.shares.duplicate + worker.shares.lowDifficulty}
@@ -195,6 +195,40 @@
         <BlockFeed blocks={feed} {totals} title={t('miner.blockFeed')} subsidy={{ BTC: snapshot?.bitcoin.blockSubsidy ?? null, DOI: snapshot?.doichain.blockSubsidy ?? null }} />
       </section>
 
+      {#if snapshot?.pool.syndicate?.enabled && miner.syndicate}
+        {@const syn = miner.syndicate}
+        <section class="card span12" aria-label={t('miner.syndicate')} style="border-color: {syn.active ? '#1E5A7A' : 'var(--border)'}">
+          <div class="syntiles">
+            <div>
+              <div class="label doi">{t('miner.syndicate')}</div>
+              <div class="mono val">{syn.active ? t('miner.syndicateActive') : t('miner.syndicateSolo')}</div>
+              <div class="muted" style="font-size: 12px"><a href="/syndicate">{t('pool.syndicateLink')}</a></div>
+            </div>
+            <div>
+              <div class="label">{t('miner.syndicateShare')}</div>
+              <div class="mono val">{syn.inWindow ? fmtPercent(syn.percent, 2) : '–'}</div>
+              <div class="muted" style="font-size: 12px">{syn.inWindow ? t('miner.syndicatePerBlock', { amount: fmtCoins(syn.perBlockDoi, 'DOI', 4) }) : (syn.active ? t('miner.syndicateNoWork', { hours: snapshot.pool.syndicate.windowHours }) : '')}</div>
+            </div>
+            <div>
+              <div class="label">{t('syn.payouts')}</div>
+              <div class="mono val">{fmtCoins(syn.paidOutDoi, 'DOI', 4)}</div>
+              <div class="muted" style="font-size: 12px">{t('miner.syndicatePaid', { n: fmtInt(syn.blocksPaid) })}</div>
+            </div>
+          </div>
+          {#if !syn.active && !syn.inWindow}
+            <p class="muted" style="font-size: 12.5px; margin-top: 10px">{t('miner.syndicateNone')}</p>
+          {/if}
+          {#if syn.payouts.length > 0}
+            <div class="label" style="margin-top: 12px">{t('miner.syndicatePayouts')}</div>
+            <ol class="mono" style="list-style: none; margin: 8px 0 0; padding: 0; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px">
+              {#each syn.payouts.slice(0, 8) as payout (payout.blockHash + payout.doiAddress)}
+                <li style="display: flex; gap: 10px"><span class="doi" style="width: 120px; flex: none">+{fmtCoins(payout.amountDoi, 'DOI', 4)}</span><span style="color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"><a href={`/explorer/doi/block/${payout.blockHash}`} style="color: inherit">{t('explorer.block')} {fmtInt(payout.height)}</a> · {fmtPercent(payout.percent, 2)}{#if !payout.accepted} · <span class="red">{t('blocks.rejected')}</span>{/if}</span><span class="muted-2" style="white-space: nowrap">{fmtDate(payout.time)}</span></li>
+              {/each}
+            </ol>
+          {/if}
+        </section>
+      {/if}
+
       <div class="span12"><WalletNotice compact /></div>
 
       <section class="card span12" aria-label={t('miner.doiTo')} style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
@@ -213,6 +247,10 @@
 
 <style>
   .devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+  .syntiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .syntiles .val { font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .synbadge { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--doi); border: 1px solid #1E5A7A; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+  @media (max-width: 980px) { .syntiles { grid-template-columns: 1fr; } }
   @media (max-width: 1200px) { .devices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 600px) { .devices { grid-template-columns: 1fr; } }
 </style>

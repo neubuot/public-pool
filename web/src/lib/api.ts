@@ -54,6 +54,8 @@ export interface FoundBlock {
     accepted: boolean;
     result: string | null;
     time: string | null;
+    /** syndicate block: how many members the Doichain coinbase paid, null for a solo block */
+    syndicateMembers?: number | null;
 }
 
 export interface TopShare {
@@ -62,6 +64,61 @@ export interface TopShare {
     userAgent: string | null;
     difficulty: number;
     time: number;
+}
+
+export interface SyndicateDistributionEntry {
+    address: string;
+    work: number;
+    percent: number;
+    /** integer units of the block being mined, null before the first block is built */
+    amount: number | null;
+}
+
+export interface SyndicateStats {
+    enabled: boolean;
+    windowHours: number;
+    minPayoutDoi: number;
+    maxMembers: number;
+    members: number;
+    devicesOnline: number;
+    hashRate: number;
+    work: number;
+    distribution: SyndicateDistributionEntry[];
+    othersPercent: number;
+    blocksFound: number;
+    paidOutDoi: number;
+    membersPaid: number;
+    lastBlock: { height: number, blockHash: string, time: number, accepted: boolean, members: number, totalDoi: number, finderWorker: string } | null;
+    current: { height: number, hash: string, members: number, coinbaseValueDoi: number, builtAt: number, transactions: number, droppedTransactions: number } | null;
+}
+
+export interface SyndicatePayoutView {
+    height: number;
+    blockHash: string;
+    doiAddress: string;
+    amountDoi: number;
+    percent: number;
+    accepted: boolean;
+    time: number;
+    finderWorker: string;
+}
+
+export interface MinerSyndicate {
+    active: boolean;
+    inWindow: boolean;
+    work: number;
+    percent: number;
+    perBlockDoi: number;
+    paidOutDoi: number;
+    blocksPaid: number;
+    payouts: SyndicatePayoutView[];
+}
+
+export interface SyndicateDetail extends Omit<SyndicateStats, 'members'> {
+    /** every member inside the window with its weight, largest first */
+    members: { address: string, work: number, shares: number, percent: number, amountDoi: number | null }[];
+    blocks: { height: number, blockHash: string, time: number, accepted: boolean, finderAddress: string, finderWorker: string, members: number, total: number, totalDoi: number }[];
+    currentOutputs: { address: string, amountDoi: number, percent: number }[];
 }
 
 export interface PoolStats {
@@ -81,6 +138,8 @@ export interface PoolStats {
     telegramBot: string | null;
     /** configured pool fee in percent */
     feePercent: number;
+    /** syndicate mode (shared Doichain rewards) */
+    syndicate: SyndicateStats | null;
 }
 
 export interface StatsSnapshot {
@@ -138,6 +197,8 @@ export interface MinerWorker {
     lastSeen: string;
     online: boolean;
     doiAddress: string | null;
+    /** the session shares Doichain rewards with the syndicate */
+    syndicate: boolean;
     /** share diagnostics of the session */
     shares: { accepted: number, stale: number, duplicate: number, lowDifficulty: number };
     lastReject: { at: number, reason: string } | null;
@@ -155,7 +216,8 @@ export interface MinerInfo {
     shares: number;
     topShares: TopShare[];
     workers: MinerWorker[];
-    blocks: { chain: string, height: number, blockHash: string | null, worker: string, result: string | null, accepted: boolean, time: string }[];
+    syndicate: MinerSyndicate;
+    blocks: { chain: string, height: number, blockHash: string | null, worker: string, result: string | null, accepted: boolean, time: string, syndicateMembers?: number | null }[];
     odds: { bitcoin: ChainOdds, doichain: ChainOdds };
     chart: ChartPoint[];
 }
@@ -267,7 +329,7 @@ export type SearchResult =
     | { type: 'address', chain: Chain, address: string };
 
 export interface InfoResponse {
-    blockData: { height: number, minerAddress: string, worker: string, sessionId: string, chain: string, blockHash: string | null, result: string | null, createdAt?: string }[];
+    blockData: { height: number, minerAddress: string, worker: string, sessionId: string, chain: string, blockHash: string | null, result: string | null, createdAt?: string, syndicateMembers?: number | null }[];
     userAgents: { userAgent: string, count: string, bestDifficulty: string, totalHashRate: string }[];
     highScores: { updatedAt: string, bestDifficulty: number, bestDifficultyUserAgent: string }[];
     uptime: string;
@@ -309,7 +371,11 @@ export interface CoinbaseProof {
     coinb2: string;
     merkleBranches: number;
     auxTag: boolean;
-    doichain: { enabled: boolean, address: string | null, block: { height: number, hash: string, coinbaseValue: number, chainId: number } | null, error: string | null };
+    doichain: {
+        enabled: boolean, address: string | null, block: { height: number, hash: string, coinbaseValue: number, chainId: number } | null, error: string | null,
+        /** the shared block's outputs when the address mines in syndicate mode */
+        syndicate: { members: number, outputs: { address: string, amountDoi: number, percent: number, yours: boolean }[], windowHours: number } | null
+    };
 }
 export interface HealthNode {
     reachable: boolean;
@@ -381,6 +447,7 @@ export const api = {
     stats: () => get<StatsSnapshot>('/stats'),
     history: (range: string) => get<History>(`/stats/history?range=${encodeURIComponent(range)}`),
     info: () => get<InfoResponse>('/info'),
+    syndicate: () => get<SyndicateDetail>('/syndicate'),
     miner: (address: string) => get<MinerInfo>(`/miner/${encodeURIComponent(address)}`),
     worker: (address: string, name: string) => get<WorkerInfo>(`/miner/${encodeURIComponent(address)}/worker/${encodeURIComponent(name)}`),
     validateBtc: (address: string) => get<AddressCheck>(`/validate/btc/${encodeURIComponent(address)}`),

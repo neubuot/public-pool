@@ -20,6 +20,7 @@
   import ShareBest from './pages/ShareBest.svelte';
   import ShareCard from './pages/ShareCard.svelte';
   import Status from './pages/Status.svelte';
+  import Syndicate from './pages/Syndicate.svelte';
 
   const routes: { pattern: string, component: any }[] = [
     { pattern: '/', component: Home },
@@ -29,6 +30,7 @@
     { pattern: '/integrations', component: Integrations },
     { pattern: '/status', component: Status },
     { pattern: '/doi', component: Doi },
+    { pattern: '/syndicate', component: Syndicate },
     { pattern: '/explorer', component: Explorer },
     { pattern: '/explorer/:chain/block/:id', component: ExplorerBlock },
     { pattern: '/explorer/:chain/tx/:txid', component: ExplorerTx },

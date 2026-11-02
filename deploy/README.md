@@ -63,6 +63,7 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 | Port | `3333` |
 | Benutzername | `<BTC-Adresse>.<Gerätename>` |
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
+| Syndikat-Modus | `<DOI-Adresse>,syndicate` (DOI-Funde werden mit den Mitgliedern geteilt, siehe unten) |
 
 Ohne DOI-Adresse im Passwort geht die DOI-Belohnung an `DOICHAIN_DEFAULT_ADDRESS`. Das Dashboard unter
 `https://pool.doilabs.org` (Quellcode in `web/`, Beschreibung in `web/README.md`) führt durch das Onboarding
@@ -110,6 +111,26 @@ Update mit `affected > 0`), meldet `RecordAlertsService` ihn ab `RECORD_ALERT_MI
 (`/api/share/best/<Adresse>`, Vorschauseite `/s/best/<Adresse>`, im Dashboard `/share/best/<Adresse>`) und an die
 Webhooks. Rekorde innerhalb von 90 Sekunden werden zu einer Nachricht mit dem höchsten zusammengefasst, so bleibt
 ein frischer Miner, der sich in der ersten Stunde ständig selbst schlägt, erträglich.
+
+Syndikat-Modus (seit 02.11.2026): Steht hinter der DOI-Adresse im Stratum-Passwort `,syndicate` (auch
+`syndikat`, `syn` oder `s=1`), teilt die Session ihre Doichain-Funde mit den anderen Mitgliedern. Jeder
+angenommene Share wird der DOI-Adresse mit seiner Difficulty gutgeschrieben (`syndicate_share_entity`, je Adresse
+und Stunde, Flush alle 15 s, 90 Tage aufbewahrt). Für das Syndikat baut `SyndicateService` den Doichain-Block
+selbst aus `getblocktemplate` (`src/utils/aux-block.ts`): ein Coinbase mit einem Ausgang je Mitglied, Betrag
+anteilig an der Share-Arbeit der letzten `SYNDICATE_WINDOW_HOURS` (pool.env, Standard 24), Ausgänge unter
+`SYNDICATE_MIN_PAYOUT_DOI` (Standard 0,001) entfallen zugunsten der übrigen, höchstens `SYNDICATE_MAX_MEMBERS`
+(Standard 250) Ausgänge, Witness-Commitment als letzter Ausgang, Version = Vorlage plus AuxPoW-Flag (0x100).
+Der Hash dieses Blocks steht als Merged-Mining-Tag im Bitcoin-Coinbase aller Mitglieder; trifft ein Share das
+Doichain-Ziel, geht der komplette Block (Header, AuxPoW-Beweis, Transaktionen) per `submitblock` an den Node.
+Solange niemand Arbeit im Fenster hat, zahlt der Block die anfragende Adresse allein. Der Pool verwahrt nichts:
+die Chain zahlt die Mitglieder direkt, Bitcoin-Funde bleiben Solo. Funde stehen mit `syndicateMembers` in
+`blocks_entity`, die Ausgänge in `syndicate_payout_entity`; `SYNDICATE_ENABLED=false` schaltet ab. API:
+`/api/syndicate` (Statistik, Verteilung des nächsten Blocks, gefundene Blöcke), `/api/syndicate/block/<Höhe>`,
+`syndicate` in `/api/stats` (pool) und `/api/miner/<Adresse>`, Ausgänge im Coinbase-Nachweis. Dashboard: Seite
+`/syndicate`, Umschalter auf der Startseite, Karten auf Pool- und Miner-Seite, Kennzeichen im Block-Feed.
+Telegram meldet Syndikat-Blöcke mit Mitgliederzahl, Mitglieder bekommen ihre Auszahlung (Abonnenten der
+BTC-Adressen, deren Geräte die DOI-Adresse nutzen), Webhooks das Ereignis `syndicate.payout`. Regtest-Nachweis:
+`bash regtest/e2e-syndicate.sh`.
 
 Webhooks (seit 31.10.2026): Je BTC-Adresse bis zu drei Ziele, auf „Mein Dashboard“ unter Benachrichtigungen
 eingetragen (kein Login, wer die Adresse kennt, darf eintragen und entfernen; die Ziele bekommen nur, was das

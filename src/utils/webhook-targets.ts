@@ -11,7 +11,7 @@ export const MAX_WEBHOOKS_PER_ADDRESS = 3;
 /** a target is switched off after this many deliveries in a row failed */
 export const DISABLE_AFTER_FAILURES = 10;
 
-export type WebhookEventName = 'test' | 'block.found' | 'worker.offline' | 'worker.online' | 'share.record';
+export type WebhookEventName = 'test' | 'block.found' | 'worker.offline' | 'worker.online' | 'share.record' | 'syndicate.payout';
 
 export interface WebhookEvent {
     event: WebhookEventName;
@@ -110,6 +110,7 @@ function tagFor(event: WebhookEventName): string {
         case 'worker.offline': return 'electric_plug';
         case 'worker.online': return 'white_check_mark';
         case 'share.record': return 'trophy';
+        case 'syndicate.payout': return 'moneybag';
         default: return 'bell';
     }
 }

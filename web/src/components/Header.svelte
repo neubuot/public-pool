@@ -80,6 +80,7 @@
     <a href="/" class:active={isActive('/')} onclick={() => { menuOpen = false; }}>{t('nav.start')}</a>
     <a href="/pool" class:active={isActive('/pool')} onclick={() => { menuOpen = false; }}>{t('nav.pool')}</a>
     <a href="/blocks" class:active={isActive('/blocks')} onclick={() => { menuOpen = false; }}>{t('nav.blocks')}</a>
+    <a href="/syndicate" class:active={isActive('/syndicate')} onclick={() => { menuOpen = false; }}>{t('nav.syndicate')}</a>
     <a href="/explorer" class:active={isActive('/explorer')} onclick={() => { menuOpen = false; }}>{t('nav.explorer')}</a>
     <button class="btn mono" type="button" onclick={openMine} style="font-size: 12.5px">
       {#if saved.btcAddress.length > 0 && validate(saved.btcAddress)}

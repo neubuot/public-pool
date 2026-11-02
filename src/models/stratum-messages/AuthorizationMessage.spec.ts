@@ -47,3 +47,32 @@ describe('AuthorizationMessage', () => {
         });
     });
 });
+
+describe('AuthorizationMessage syndicate flag', () => {
+    const parse = (password: string) => plainToInstance(
+        AuthorizationMessage,
+        JSON.parse(JSON.stringify({ id: 3, method: 'mining.authorize', params: ['tb1qumezefzdeqqwn5zfvgdrhxjzc5ylr39uhuxcz4.worker1', password] }))
+    );
+
+    it('is off by default and with a bare Doichain address', () => {
+        expect(parse('x').syndicate).toBe(false);
+        const message = parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w');
+        expect(message.syndicate).toBe(false);
+        expect(message.doiAddress).toBe('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w');
+    });
+
+    it('accepts the syndicate word after the address, combined with a difficulty', () => {
+        const message = parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,syndicate,d=512');
+        expect(message.syndicate).toBe(true);
+        expect(message.doiAddress).toBe('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w');
+        expect(message.startingDiff).toBe(512);
+        expect(parse('doi=dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,Syndikat').syndicate).toBe(true);
+        expect(parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w syn').syndicate).toBe(true);
+        expect(parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,s=1').syndicate).toBe(true);
+    });
+
+    it('ignores look-alikes', () => {
+        expect(parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,s=0').syndicate).toBe(false);
+        expect(parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,syndicates').syndicate).toBe(false);
+    });
+});

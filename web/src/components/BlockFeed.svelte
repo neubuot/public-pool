@@ -28,7 +28,7 @@
   {@const reward = block.chain === 'DOI' ? subsidy.DOI : subsidy.BTC}
   <article class="card-inner" style="border-color: {block.accepted ? (block.chain === 'DOI' ? 'var(--doi)' : 'var(--btc)') : 'var(--red)'}; display: flex; gap: 14px; align-items: center">
     <div style="min-width: 0; flex: 1">
-      <div style="display: flex; align-items: center; gap: 8px"><ChainBadge chain={block.chain} /><span class="mono" style="font-weight: 600">{t('explorer.block')} {fmtInt(block.height)}</span>{#if !block.accepted}<span class="red" style="font-size: 12px">{t('blocks.rejected')}</span>{/if}</div>
+      <div style="display: flex; align-items: center; gap: 8px"><ChainBadge chain={block.chain} /><span class="mono" style="font-weight: 600">{t('explorer.block')} {fmtInt(block.height)}</span>{#if !block.accepted}<span class="red" style="font-size: 12px">{t('blocks.rejected')}</span>{/if}{#if block.syndicateMembers}<span class="label doi" style="font-size: 10px; border: 1px solid #1E5A7A; border-radius: 999px; padding: 1px 7px">{t('blocks.syndicate', { n: fmtInt(block.syndicateMembers) })}</span>{/if}</div>
       {#if reward != null}
         <div class="mono" style="font-size: 20px; font-weight: 600; margin-top: 2px">+{fmtCoins(reward, block.chain, block.chain === 'BTC' ? 3 : 1)}</div>
       {/if}

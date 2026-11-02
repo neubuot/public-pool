@@ -48,7 +48,7 @@
                 <td><ChainBadge chain={block.chain} /></td>
                 <td class="num mono">{fmtInt(block.height)}</td>
                 <td class="hash">{#if block.blockHash}<a href={`/explorer/${block.chain.toLowerCase()}/block/${block.blockHash}`}>{shortHash(block.blockHash, 12, 8)}</a>{:else}–{/if}</td>
-                <td>{block.worker}</td>
+                <td>{block.worker}{#if block.syndicateMembers} <span class="label doi" style="font-size: 10px; border: 1px solid #1E5A7A; border-radius: 999px; padding: 1px 7px; white-space: nowrap">{t('blocks.syndicate', { n: fmtInt(block.syndicateMembers) })}</span>{/if}</td>
                 <td class="mono"><a href={`/d/${block.minerAddress}`}>{shortHash(block.minerAddress, 8, 6)}</a></td>
                 <td class={accepted(block.result) ? 'green' : 'red'}>{accepted(block.result) ? t('blocks.accepted') : `${t('blocks.rejected')} (${block.result})`}</td>
                 <td class="muted" style="white-space: nowrap">{block.createdAt ? fmtDate(block.createdAt) : '–'}</td>

@@ -31,6 +31,8 @@ export interface ShareCardData {
     bestShare: number | null;
     poolBlocks: number;
     domain: string;
+    /** syndicate block: members the Doichain coinbase paid, null for a solo block */
+    syndicateMembers: number | null;
 }
 
 /** the best share of an address, for the record card */
@@ -166,6 +168,7 @@ export class ShareImageService {
             bestShare: best?.difficulty ?? settings?.bestDifficulty ?? null,
             poolBlocks,
             domain: this.publicUrl(hostname).replace(/^https?:\/\//, ''),
+            syndicateMembers: block.syndicateMembers ?? null,
         };
     }
 
@@ -235,7 +238,7 @@ export class ShareImageService {
         const reward = d.subsidy != null ? `+${fmtDe(d.subsidy, d.chain === 'BTC' ? 3 : 1)} ${d.chain}` : `+${d.chain}`;
         return this.frame(accent, d.domain,
             el('div', { display: 'flex', flexDirection: 'column' }, [
-                label(`Block gefunden · ${chainName}${d.accepted ? '' : ' · abgelehnt'}`, accent),
+                label(`Block gefunden · ${chainName}${d.syndicateMembers != null ? ` · Syndikat, ${fmtDe(d.syndicateMembers)} Mitglieder` : ''}${d.accepted ? '' : ' · abgelehnt'}`, accent),
                 el('div', { display: 'flex', fontFamily: MONO, fontSize: 88, fontWeight: 600, lineHeight: 1, marginTop: 10, letterSpacing: -2 }, reward),
                 el('div', { display: 'flex', fontFamily: MONO, fontSize: 30, color: COLORS.text2, marginTop: 14 }, `Block ${fmtDe(d.height)}${d.time ? ` · ${fmtDate(d.time)}` : ''}`),
             ]),

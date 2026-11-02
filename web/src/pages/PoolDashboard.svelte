@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
 
   import { api, type History } from '../lib/api';
-  import { fmtCoins, fmtDate, fmtDifficulty, fmtEur, fmtHashrate, fmtInt, fmtNum, fmtPercent, fmtSignedPercent } from '../lib/format';
+  import { fmtCoins, fmtDate, fmtDifficulty, fmtDuration, fmtEur, fmtHashrate, fmtInt, fmtNum, fmtPercent, fmtSignedPercent } from '../lib/format';
   import { lang, t } from '../lib/i18n.svelte';
   import { stats } from '../lib/stats.svelte';
   import BlockFeed from '../components/BlockFeed.svelte';
@@ -60,6 +60,15 @@
   const totalDevices = $derived(snapshot?.pool.userAgents.reduce((acc, a) => acc + a.count, 0) ?? 0);
   const maxAgentHash = $derived(Math.max(1, ...(snapshot?.pool.userAgents.map(a => a.totalHashRate) ?? [1])));
   const doiShare = $derived(snapshot?.doichain.networkHashPs ? snapshot.pool.hashRate / snapshot.doichain.networkHashPs : null);
+  /** erwartete Sekunden bis zum nächsten Syndikat-Block aus Difficulty und Syndikat-Hashrate */
+  const synExpected = $derived.by(() => {
+    const syn = snapshot?.pool.syndicate;
+    const difficulty = snapshot?.doichain.difficulty;
+    if (syn == null || difficulty == null || difficulty <= 0 || syn.hashRate <= 0) {
+      return null;
+    }
+    return difficulty * 4294967296 / syn.hashRate;
+  });
 </script>
 
 <main class="page">
@@ -103,6 +112,30 @@
       <section class="card span4" aria-label={t('pool.lottery')} style="display: flex; flex-direction: column; gap: 14px">
         <LotteryCard odds={snapshot.odds} snapshot={snapshot} title={t('pool.lottery')} hint={t('pool.lotteryHint')} />
       </section>
+
+      {#if snapshot.pool.syndicate?.enabled}
+        {@const syn = snapshot.pool.syndicate}
+        <section class="card span12 syn" aria-label={t('pool.syndicate')}>
+          <div>
+            <div class="label doi">{t('pool.syndicate')}</div>
+            <div class="mono val">{fmtInt(syn.members)} <span class="muted" style="font-size: 13px; font-weight: 400">{t('syn.membersShort')}</span></div>
+            <div class="muted" style="font-size: 12px">{t('pool.syndicateHint', { devices: fmtInt(syn.devicesOnline), hashrate: fmtHashrate(syn.hashRate) })}</div>
+          </div>
+          <div>
+            <div class="label">{t('syn.expected')}</div>
+            <div class="mono val">{synExpected != null ? t('pool.every', { duration: fmtDuration(synExpected) }) : '–'}</div>
+            <div class="muted" style="font-size: 12px">{t('syn.expectedHint')}</div>
+          </div>
+          <div>
+            <div class="label">{t('syn.blocks')}</div>
+            <div class="mono val">{fmtInt(syn.blocksFound)}</div>
+            <div class="muted" style="font-size: 12px">{syn.lastBlock ? t('pool.syndicateLast', { height: fmtInt(syn.lastBlock.height), amount: fmtCoins(syn.lastBlock.totalDoi, 'DOI', 2), n: fmtInt(syn.lastBlock.members) }) : t('syn.noBlocksShort')}</div>
+          </div>
+          <div class="synlink">
+            <a href="/syndicate" class="btn">{t('pool.syndicateLink')}</a>
+          </div>
+        </section>
+      {/if}
 
       <section class="card span6" aria-label="Bitcoin"><ChainCard chain={snapshot.bitcoin} poolHashRate={snapshot.pool.hashRate} /></section>
       <section class="card span6" aria-label="Doichain"><ChainCard chain={snapshot.doichain} poolHashRate={snapshot.pool.hashRate} /></section>
@@ -224,5 +257,7 @@
 <style>
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
   .val { font-size: 20px; font-weight: 600; margin-top: 4px; }
-  @media (max-width: 980px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .syn { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; border-color: #1E5A7A; background: linear-gradient(135deg, rgba(56, 189, 248, 0.10), rgba(56, 189, 248, 0.02)); }
+  .synlink { display: flex; align-items: center; justify-content: flex-end; }
+  @media (max-width: 980px) { .tiles, .syn { grid-template-columns: repeat(2, minmax(0, 1fr)); } .synlink { justify-content: flex-start; } }
 </style>

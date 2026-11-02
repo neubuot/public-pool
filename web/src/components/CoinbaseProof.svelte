@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
 
   import { api, type CoinbaseProof } from '../lib/api';
-  import { fmtCoins, fmtDuration, fmtHashrate, fmtInt, shortHash } from '../lib/format';
+  import { fmtCoins, fmtDuration, fmtHashrate, fmtInt, fmtPercent, shortHash } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import CopyButton from '../components/CopyButton.svelte';
 
@@ -65,7 +65,12 @@
 
     <div class="label" style="margin-top: 12px">{t('proof.doichain')}</div>
     <p class="text">
-      {#if proof.doichain.block != null}
+      {#if proof.doichain.block != null && proof.doichain.syndicate != null}
+        {@const yours = proof.doichain.syndicate.outputs.find(o => o.yours)}
+        {t('proof.syndicate', { members: fmtInt(proof.doichain.syndicate.members), hours: proof.doichain.syndicate.windowHours, height: fmtInt(proof.doichain.block.height), reward: fmtCoins(proof.doichain.block.coinbaseValue / 1e8, 'DOI', 2) })}
+        {#if yours}{t('proof.syndicateYours', { amount: fmtCoins(yours.amountDoi, 'DOI', 4), percent: fmtPercent(yours.percent, 2) })}{:else}{t('proof.syndicateNone', { hours: proof.doichain.syndicate.windowHours })}{/if}
+        {#if !proof.auxTag} <span class="warn">{t('proof.auxTagMissing')}</span>{/if}
+      {:else if proof.doichain.block != null}
         {t('proof.doiBlock', { address: shortHash(proof.doichain.address ?? '', 8, 6), height: fmtInt(proof.doichain.block.height), reward: fmtCoins(proof.doichain.block.coinbaseValue / 1e8, 'DOI', 2) })}
         {#if !proof.auxTag} <span class="warn">{t('proof.auxTagMissing')}</span>{/if}
       {:else if proof.doichain.error}
@@ -74,6 +79,22 @@
         {t('proof.doiNone')}
       {/if}
     </p>
+
+    {#if proof.doichain.syndicate != null && proof.doichain.syndicate.outputs.length > 0}
+      <div class="label" style="margin-top: 12px">{t('proof.syndicateOutputs')}</div>
+      <table class="outputs">
+        <tbody>
+          {#each proof.doichain.syndicate.outputs as out, i (out.address)}
+            <tr class:yours={out.yours}>
+              <td class="mono muted-2">#{i}</td>
+              <td class="mono addr">{out.address}</td>
+              <td class="mono amount">{fmtCoins(out.amountDoi, 'DOI', 4)}</td>
+              <td class="kind">{#if out.yours}✅ {/if}{fmtPercent(out.percent, 2)}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
 
     <details style="margin-top: 12px">
       <summary class="label" style="cursor: pointer">{t('proof.raw')}</summary>

@@ -6,6 +6,7 @@ import { BehaviorSubject, filter, shareReplay } from 'rxjs';
 import * as zmq from 'zeromq';
 
 import { IAuxBlock } from '../models/auxpow';
+import { IAuxTemplate } from '../utils/aux-block';
 
 interface CachedAuxBlock {
     block: IAuxBlock;
@@ -33,6 +34,7 @@ export class DoichainRpcService implements OnModuleInit {
     private auxBlockCache = new Map<string, CachedAuxBlock>();
     private pendingAuxBlock = new Map<string, Promise<IAuxBlock>>();
     private addressCache = new Map<string, boolean>();
+    private scriptCache = new Map<string, Buffer | null>();
     private lastPollErrorLog = 0;
 
     private _newBlock$: BehaviorSubject<number> = new BehaviorSubject(undefined);
@@ -172,6 +174,46 @@ export class DoichainRpcService implements OnModuleInit {
         } catch (e) {
             const message = e?.message ?? JSON.stringify(e);
             console.error(`DOICHAIN AUXPOW SUBMISSION ERROR: ${message} (aux block ${hash})`);
+            return { accepted: false, message: `error: ${message}` };
+        }
+    }
+
+    /**
+     * scriptPubKey of a Doichain address as the node derives it (any address type of the configured network),
+     * null for an invalid address. Cached, addresses do not change.
+     */
+    public async getScriptPubKey(address: string): Promise<Buffer | null> {
+        if (!this.enabled || address == null || address.length === 0) {
+            return null;
+        }
+        const cached = this.scriptCache.get(address);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const result = await this.callRpc<{ isvalid: boolean, scriptPubKey?: string }>('validateaddress', [address]);
+        const script = result?.isvalid === true && typeof result.scriptPubKey === 'string' && result.scriptPubKey.length > 0
+            ? Buffer.from(result.scriptPubKey, 'hex')
+            : null;
+        this.scriptCache.set(address, script);
+        this.addressCache.set(address, script != null);
+        return script;
+    }
+
+    /** Block template for a block the pool assembles itself (the syndicate block). */
+    public async getBlockTemplate(): Promise<IAuxTemplate> {
+        return this.callRpc<IAuxTemplate>('getblocktemplate', [{ rules: ['segwit'] }]);
+    }
+
+    /** Hands in a complete block (header with AuxPoW, transactions). The node answers null when it took it. */
+    public async submitBlock(hex: string): Promise<{ accepted: boolean, message: string }> {
+        try {
+            const result = await this.callRpc<string | null>('submitblock', [hex]);
+            const accepted = result == null;
+            console.log(`DOICHAIN SUBMITBLOCK RESPONSE: ${accepted ? 'accepted' : JSON.stringify(result)}`);
+            return { accepted, message: accepted ? 'accepted' : `rejected: ${result}` };
+        } catch (e) {
+            const message = e?.message ?? JSON.stringify(e);
+            console.error(`DOICHAIN SUBMITBLOCK ERROR: ${message}`);
             return { accepted: false, message: `error: ${message}` };
         }
     }

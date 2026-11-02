@@ -45,6 +45,10 @@ import { WebhooksModule } from './ORM/webhooks/webhooks.module';
 import { WebhookService } from './services/webhook.service';
 import { RecordAlertsService } from './services/record-alerts.service';
 import { WebhooksController } from './controllers/webhooks/webhooks.controller';
+import { SyndicateSharesModule } from './ORM/syndicate-shares/syndicate-shares.module';
+import { SyndicatePayoutsModule } from './ORM/syndicate-payouts/syndicate-payouts.module';
+import { SyndicateService } from './services/syndicate.service';
+import { SyndicateController } from './controllers/syndicate/syndicate.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -57,7 +61,9 @@ const ORMModules = [
     ChainSampleModule,
     TopSharesModule,
     WorkerPresenceModule,
-    WebhooksModule
+    WebhooksModule,
+    SyndicateSharesModule,
+    SyndicatePayoutsModule
 ]
 
 @Module({
@@ -88,7 +94,8 @@ const ORMModules = [
         MinerController,
         ValidateController,
         ShareController,
-        WebhooksController
+        WebhooksController,
+        SyndicateController
     ],
     providers: [
         PoolEventsService,
@@ -104,6 +111,7 @@ const ORMModules = [
         WorkerAlertsService,
         BitcoinRpcService,
         DoichainRpcService,
+        SyndicateService,
         NotificationService,
         BitcoinAddressValidator,
         StratumV1JobsService,

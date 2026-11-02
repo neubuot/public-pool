@@ -32,6 +32,7 @@ export class BlocksService {
                 chain: true,
                 blockHash: true,
                 result: true,
+                syndicateMembers: true,
                 createdAt: true
             }
         });
@@ -46,7 +47,8 @@ export class BlocksService {
                 sessionId: true,
                 chain: true,
                 blockHash: true,
-                result: true
+                result: true,
+                syndicateMembers: true
             },
             where: {
                 minerAddress: address
@@ -78,6 +80,7 @@ export class BlocksService {
                 chain: true,
                 blockHash: true,
                 result: true,
+                syndicateMembers: true,
                 createdAt: true
             },
             order: { id: 'DESC' },
@@ -96,6 +99,7 @@ export class BlocksService {
                 chain: true,
                 blockHash: true,
                 result: true,
+                syndicateMembers: true,
                 createdAt: true
             },
             where: { minerAddress: address },

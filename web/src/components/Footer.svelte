@@ -12,6 +12,7 @@
     <a href="/status">{t('footer.status')}</a>
     <a href="/integrations">{t('footer.integrations')}</a>
     <a href="/doi">{t('footer.doi')}</a>
+    <a href="/syndicate">{t('footer.syndicate')}</a>
     <a href={walletsUrl} target="_blank" rel="noopener noreferrer">{t('footer.wallets')}</a>
     <a href={repoUrl} target="_blank" rel="noopener noreferrer">{t('footer.source')}</a>
   </div>

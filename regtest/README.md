@@ -95,6 +95,15 @@ Die gefundenen Blöcke beider Ketten stehen auch in der Pool-API: `http://127.0.
 4. Die Doichain-Adresse kommt aus dem Stratum-Passwort (`dc1q…` oder `doi=dc1q…`, kombinierbar mit `d=…`),
    sonst aus `DOICHAIN_DEFAULT_ADDRESS`.
 
+## Syndikat-Modus
+
+`bash regtest/e2e-syndicate.sh` startet den Pool wie oben und lässt zwei Miner mit verschiedenen DOI-Adressen und
+`,syndicate` im Passwort je zwei bzw. drei Shares finden. Der Pool baut die Doichain-Blöcke dafür selbst (Coinbase
+mit einem Ausgang je Mitglied, `submitblock` statt `submitauxblock`). Bestanden ist der Lauf, wenn Doichain
+mindestens drei Blöcke angenommen hat und der letzte Block beide Adressen bezahlt; `/api/syndicate` zeigt die
+Blöcke mit Mitgliederzahl. Im Pool-Log steht je Fund `!!! DOICHAIN SYNDICATE BLOCK FOUND !!!` und
+`DOICHAIN SUBMITBLOCK RESPONSE: accepted`.
+
 ## Aufräumen
 
 ```bash

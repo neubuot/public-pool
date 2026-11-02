@@ -147,6 +147,25 @@ export class ClientService {
     }
 
 
+    /** Sessions in syndicate mode that sent a heartbeat within the last five minutes. */
+    public async getSyndicateClients(): Promise<ClientEntity[]> {
+        return await this.clientRepository.createQueryBuilder('client')
+            .where('client.syndicate = 1')
+            .andWhere("client.updatedAt >= DATETIME('now', '-5 minutes')")
+            .getMany();
+    }
+
+    /** Sessions (ended ones included) paying Doichain rewards to one of the addresses, e.g. to find who to notify. */
+    public async getByDoiAddresses(doiAddresses: string[]): Promise<ClientEntity[]> {
+        if (doiAddresses.length === 0) {
+            return [];
+        }
+        return await this.clientRepository.createQueryBuilder('client')
+            .withDeleted()
+            .where('client.doiAddress IN (:...doiAddresses)', { doiAddresses })
+            .getMany();
+    }
+
     public async getByName(address: string, clientName: string): Promise<ClientEntity[]> {
         return await this.clientRepository.find({
             where: {

@@ -15,6 +15,7 @@
   let doi = $state(saved.doiAddress);
   let worker = $state(saved.worker || 'bitaxe1');
   let btcOnly = $state(false);
+  let syndicate = $state(saved.syndicate === '1');
   let device = $state<'bitaxe' | 'nerdminer' | 'cgminer' | 'braiins'>('bitaxe');
 
   let doiCheck = $state<{ address: string, result: AddressCheck | null, pending: boolean }>({ address: '', result: null, pending: false });
@@ -28,7 +29,9 @@
   const doiValid = $derived(!btcOnly && doiCheck.address === doiTrim && doiCheck.result?.valid === true);
   const workerClean = $derived(worker.trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || 'worker');
   const username = $derived(btcValid ? `${btcTrim}.${workerClean}` : '');
-  const password = $derived(btcOnly ? 'x' : (doiValid ? doiTrim : ''));
+  const password = $derived(btcOnly ? 'x' : (doiValid ? (syndicate ? `${doiTrim},syndicate` : doiTrim) : ''));
+  const syndicateEnabled = $derived(stats.data?.pool.syndicate?.enabled !== false);
+  const windowHours = $derived(stats.data?.pool.syndicate?.windowHours ?? 24);
   const ready = $derived(btcValid && (btcOnly || doiValid));
   const firstWorker = $derived(miner?.workers.find(w => w.online) ?? miner?.workers[0] ?? null);
   const arrived = $derived(firstWorker != null);
@@ -68,6 +71,9 @@
   });
   $effect(() => {
     remember('worker', workerClean);
+  });
+  $effect(() => {
+    remember('syndicate', syndicate ? '1' : '');
   });
 
   async function pollMiner() {
@@ -147,6 +153,12 @@
         <div style="display: flex; align-items: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; font-size: 13px">
           <label style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-2)"><input type="checkbox" bind:checked={btcOnly} style="width: 16px; height: 16px; accent-color: var(--accent)">{t('home.btcOnly')}</label>
         </div>
+        {#if syndicateEnabled}
+          <div class="syndicate" class:on={syndicate && !btcOnly}>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px"><input type="checkbox" bind:checked={syndicate} disabled={btcOnly} style="width: 16px; height: 16px; accent-color: var(--accent)"><strong>{t('home.syndicate')}</strong></label>
+            <p class="muted" style="font-size: 12.5px; margin: 6px 0 0 24px; line-height: 1.5">{t('home.syndicateHint', { hours: windowHours })} <a href="/syndicate">{t('home.syndicateMore')}</a></p>
+          </div>
+        {/if}
       </section>
 
       <WalletNotice />
@@ -184,7 +196,7 @@
               <div><span>URL</span><span class="mono">{device === 'nerdminer' ? poolDomain : stratumUrl}</span></div>
               <div><span>Port</span><span class="mono">{stratumPort}</span></div>
               <div><span>User</span><span class="mono">{btcValid ? `${shortHash(btcTrim, 4, 3)}.${workerClean}` : 'bc1q….' + workerClean}</span></div>
-              <div><span>Password</span><span class="mono">{password ? (btcOnly ? 'x' : shortHash(password, 4, 4)) : 'dc1q…'}</span></div>
+              <div><span>Password</span><span class="mono">{password ? (btcOnly ? 'x' : `${shortHash(doiTrim, 4, 4)}${syndicate ? ',syndicate' : ''}`) : 'dc1q…'}</span></div>
             </div>
           </div>
         </div>
@@ -245,6 +257,8 @@
   .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
   .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .check { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; min-height: 16px; }
+  .syndicate { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .syndicate.on { border-color: #1E5A7A; background: rgba(56, 189, 248, 0.06); }
   .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
   .key { width: 118px; flex: none; }
   .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }

@@ -11,6 +11,7 @@ import { TopSharesService } from '../../ORM/top-shares/top-shares.service';
 import { ChainStatsService } from '../../services/chain-stats.service';
 import { DoichainRpcService } from '../../services/doichain-rpc.service';
 import { StratumV1JobsService } from '../../services/stratum-v1-jobs.service';
+import { SyndicateService } from '../../services/syndicate.service';
 import { describeCoinbaseOutputs, hasAuxTag, networkFor, payoutsFor } from '../../utils/coinbase-proof';
 
 const ADDRESS_RE = /^[A-Za-z0-9]{20,90}$/;
@@ -30,6 +31,7 @@ export class MinerController {
         private readonly stratumV1JobsService: StratumV1JobsService,
         private readonly doichainRpcService: DoichainRpcService,
         private readonly configService: ConfigService,
+        private readonly syndicateService: SyndicateService,
     ) { }
 
     /**
@@ -38,7 +40,7 @@ export class MinerController {
      * that the reward goes to their own address (and compare coinb1/coinb2 with what their miner receives).
      */
     @Get(':address/coinbase')
-    public async coinbase(@Param('address') address: string, @Query('doi') doiQuery?: string) {
+    public async coinbase(@Param('address') address: string, @Query('doi') doiQuery?: string, @Query('syndicate') syndicateQuery?: string) {
         const networkName = `${this.configService.get('NETWORK') ?? 'mainnet'}`.toLowerCase();
         const network = networkFor(networkName);
         if (!ADDRESS_RE.test(address) || !validate(address)) {
@@ -58,9 +60,18 @@ export class MinerController {
             : (clients.find(client => client.doiAddress != null)?.doiAddress ?? `${this.configService.get('DOICHAIN_DEFAULT_ADDRESS') ?? ''}`.trim() ?? null) || null;
         let auxBlock = null;
         let auxError: string | null = null;
+        // syndicate members merge mine the shared block, the proof shows its outputs instead of a solo coinbase
+        const syndicate = this.syndicateService.enabled && (syndicateQuery === '1' || clients.some(client => client.syndicate && client.doiAddress === doiAddress));
+        let syndicateOutputs: { address: string, amountDoi: number, percent: number, yours: boolean }[] | null = null;
         if (this.doichainRpcService.enabled && doiAddress != null) {
             try {
-                auxBlock = await this.doichainRpcService.getAuxBlock(doiAddress);
+                if (syndicate) {
+                    const block = await this.syndicateService.getAuxBlock(doiAddress);
+                    auxBlock = block;
+                    syndicateOutputs = block.members.map(member => ({ address: member.address, amountDoi: member.amount / 1e8, percent: member.percent, yours: member.address === doiAddress }));
+                } else {
+                    auxBlock = await this.doichainRpcService.getAuxBlock(doiAddress);
+                }
             } catch (e) {
                 auxError = e?.message ?? String(e);
             }
@@ -85,7 +96,8 @@ export class MinerController {
                 enabled: this.doichainRpcService.enabled,
                 address: doiAddress,
                 block: auxBlock != null ? { height: auxBlock.height, hash: auxBlock.hash, coinbaseValue: auxBlock.coinbasevalue, chainId: auxBlock.chainid } : null,
-                error: auxError
+                error: auxError,
+                syndicate: syndicateOutputs != null ? { members: syndicateOutputs.length, outputs: syndicateOutputs, windowHours: this.syndicateService.windowHours } : null
             }
         };
     }
@@ -116,6 +128,7 @@ export class MinerController {
                 lastSeen,
                 online: Number.isFinite(lastSeen.getTime()) && now - lastSeen.getTime() < ONLINE_MS,
                 doiAddress: client.doiAddress ?? null,
+                syndicate: client.syndicate === true,
                 shares: { accepted: client.sharesAccepted ?? 0, stale: client.sharesStale ?? 0, duplicate: client.sharesDuplicate ?? 0, lowDifficulty: client.sharesLowDiff ?? 0 },
                 lastReject: client.lastRejectAt != null ? { at: client.lastRejectAt, reason: client.lastRejectReason ?? 'other' } : null
             };
@@ -124,6 +137,8 @@ export class MinerController {
         const hashRate = workers.reduce((acc, worker) => acc + (worker.online ? worker.hashRate : 0), 0);
         const doiAddresses = Array.from(new Set(workers.map(w => w.doiAddress).filter(a => a != null)));
         const snapshot = this.chainStatsService.current();
+        const syndicateAddresses = Array.from(new Set(workers.filter(w => w.syndicate && w.doiAddress != null).map(w => w.doiAddress)));
+        const syndicate = await this.syndicateService.memberInfo(syndicateAddresses.length > 0 ? syndicateAddresses : doiAddresses, workers.some(w => w.syndicate && w.online));
 
         return {
             address,
@@ -137,6 +152,7 @@ export class MinerController {
             shares: settings?.shares ?? 0,
             topShares: topShares.map(share => ({ worker: share.worker, userAgent: share.userAgent ?? null, difficulty: share.difficulty, time: share.time })),
             workers,
+            syndicate,
             blocks: blocks.map(block => ({
                 chain: block.chain,
                 height: block.height,
@@ -144,7 +160,8 @@ export class MinerController {
                 worker: block.worker,
                 result: block.result,
                 accepted: block.result == null || /^(success!|accepted)$/i.test(block.result),
-                time: block.createdAt
+                time: block.createdAt,
+                syndicateMembers: block.syndicateMembers ?? null
             })),
             odds: {
                 bitcoin: this.chainStatsService.oddsFor(hashRate, snapshot?.bitcoin?.syncing ? null : snapshot?.bitcoin?.difficulty ?? null),

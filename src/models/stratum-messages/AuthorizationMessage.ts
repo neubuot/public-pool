@@ -77,6 +77,23 @@ export class AuthorizationMessage extends StratumBaseMessage {
     })
     public doiAddress?: string;
 
+    /**
+     * Syndicate mode: "dc1q...,syndicate" (also "syndikat", "syn" or "s=1") asks to share Doichain block
+     * rewards with the other members in proportion to the shares. Only meaningful with a Doichain address.
+     */
+    @Expose()
+    @IsOptional()
+    @Transform(({ value, key, obj, type }) => {
+        const password: string | null = obj.params[1];
+        if (password == null) {
+            return false;
+        }
+        return password
+            .split(/[,\s]+/)
+            .some(part => /^(syndicate|syndikat|syn)$/i.test(part) || /^(syndicate|syndikat|syn|s)=(1|true|on|yes)$/i.test(part));
+    })
+    public syndicate?: boolean;
+
     constructor() {
         super();
         this.method = eRequestMethod.AUTHORIZE;

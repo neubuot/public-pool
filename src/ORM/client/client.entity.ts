@@ -41,6 +41,10 @@ export class ClientEntity extends TrackedEntity {
     @Column({ length: 90, type: 'varchar', nullable: true })
     doiAddress: string;
 
+    /** syndicate mode: Doichain rewards are shared with the other members in proportion to the shares */
+    @Column({ type: 'boolean', default: false })
+    syndicate: boolean;
+
     /** share diagnostics of this session, written with the heartbeat */
     @Column({ type: 'integer', default: 0 })
     sharesAccepted: number;

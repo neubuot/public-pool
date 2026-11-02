@@ -34,4 +34,8 @@ export class BlocksEntity extends TrackedEntity {
     @Column({ type: 'varchar', nullable: true })
     result: string;
 
+    /** syndicate block: how many members the Doichain coinbase paid, null for a solo block */
+    @Column({ type: 'integer', nullable: true })
+    syndicateMembers: number | null;
+
 }

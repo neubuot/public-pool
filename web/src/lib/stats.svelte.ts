@@ -52,16 +52,19 @@ export function startStatsPolling(intervalMs = 15000) {
 const ADDRESS_KEY = 'nerdpool.btcAddress';
 const DOI_KEY = 'nerdpool.doiAddress';
 const WORKER_KEY = 'nerdpool.worker';
+const SYNDICATE_KEY = 'nerdpool.syndicate';
 
 export const saved = $state({
     btcAddress: read(ADDRESS_KEY) ?? '',
     doiAddress: read(DOI_KEY) ?? '',
     worker: read(WORKER_KEY) ?? 'bitaxe1',
+    /** '1' when the start page generated syndicate credentials last time */
+    syndicate: read(SYNDICATE_KEY) ?? '',
 });
 
-export function remember(key: 'btcAddress' | 'doiAddress' | 'worker', value: string) {
+export function remember(key: 'btcAddress' | 'doiAddress' | 'worker' | 'syndicate', value: string) {
     saved[key] = value;
-    const storageKey = key === 'btcAddress' ? ADDRESS_KEY : key === 'doiAddress' ? DOI_KEY : WORKER_KEY;
+    const storageKey = key === 'btcAddress' ? ADDRESS_KEY : key === 'doiAddress' ? DOI_KEY : key === 'syndicate' ? SYNDICATE_KEY : WORKER_KEY;
     try {
         window.localStorage.setItem(storageKey, value);
     } catch {

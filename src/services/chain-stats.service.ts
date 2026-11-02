@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AddressSettingsService } from '../ORM/address-settings/address-settings.service';
@@ -9,6 +9,7 @@ import { TopSharesService } from '../ORM/top-shares/top-shares.service';
 import { monthRanges } from '../utils/months';
 import { BitcoinRpcService } from './bitcoin-rpc.service';
 import { DoichainRpcService } from './doichain-rpc.service';
+import { SyndicateService, SyndicateStats } from './syndicate.service';
 import { PoolEventsService } from './pool-events.service';
 
 const DEFAULT_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,doichain&vs_currencies=eur';
@@ -72,6 +73,8 @@ export interface FoundBlockSummary {
     accepted: boolean;
     result: string | null;
     time: string | null;
+    /** syndicate block: members the Doichain coinbase paid, null for a solo block */
+    syndicateMembers: number | null;
 }
 
 export interface TopShareSummary {
@@ -101,6 +104,8 @@ export interface PoolStats {
     telegramBot: string | null;
     /** pool fee in percent as configured (DEV_FEE_ADDRESS set: 1.5 above 50 TH/s, otherwise 0) */
     feePercent: number;
+    /** syndicate mode (shared Doichain rewards), null when the service is not wired in */
+    syndicate: SyndicateStats | null;
 }
 
 export interface StatsSnapshot {
@@ -160,6 +165,7 @@ export class ChainStatsService implements OnModuleInit {
         private readonly poolEventsService: PoolEventsService,
         private readonly configService: ConfigService,
         private readonly topSharesService: TopSharesService,
+        @Optional() private readonly syndicateService?: SyndicateService,
     ) { }
 
     onModuleInit() {
@@ -311,6 +317,15 @@ export class ChainStatsService implements OnModuleInit {
         const telegramBot: string | null = this.configService.get('TELEGRAM_BOT_USERNAME') || null;
         const hasBot = `${this.configService.get('TELEGRAM_BOT_TOKEN') ?? ''}`.length > 0;
 
+        let syndicate: SyndicateStats | null = null;
+        if (this.syndicateService != null) {
+            try {
+                syndicate = await this.syndicateService.stats();
+            } catch (e) {
+                console.error('Syndicate statistics failed', e?.message ?? e);
+            }
+        }
+
         const blocksFound = { BTC: { found: 0, accepted: 0 }, DOI: { found: 0, accepted: 0 } };
         for (const block of blocks) {
             const key = block.chain === 'DOI' ? 'DOI' : 'BTC';
@@ -345,12 +360,14 @@ export class ChainStatsService implements OnModuleInit {
                 worker: block.worker,
                 accepted: isAccepted(block.result),
                 result: block.result,
-                time: block.createdAt instanceof Date ? block.createdAt.toISOString() : (block.createdAt as any) ?? null
+                time: block.createdAt instanceof Date ? block.createdAt.toISOString() : (block.createdAt as any) ?? null,
+                syndicateMembers: block.syndicateMembers ?? null
             })),
             since: this.uptime.toISOString(),
             jobsActive: this.bitcoinRpcService.syncing === false,
             telegramBot: hasBot ? (telegramBot?.replace(/^@/, '') ?? null) : null,
-            feePercent: `${this.configService.get('DEV_FEE_ADDRESS') ?? ''}`.trim().length > 0 ? 1.5 : 0
+            feePercent: `${this.configService.get('DEV_FEE_ADDRESS') ?? ''}`.trim().length > 0 ? 1.5 : 0,
+            syndicate
         };
     }
 
