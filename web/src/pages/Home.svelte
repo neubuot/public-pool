@@ -7,6 +7,7 @@
   import { poolDomain, stratumPort, stratumTlsUrl, stratumUrl } from '../lib/config';
   import { fmtAgo, fmtHashrate, fmtPercent, shortHash } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
+  import { tutorialVideos } from '../lib/links';
   import { clock, remember, saved, stats } from '../lib/stats.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import WalletNotice from '../components/WalletNotice.svelte';
@@ -245,6 +246,13 @@
           <li><span class="ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg></span><span>{#if stats.data?.pool.telegramBot}<a href={`https://t.me/${stats.data.pool.telegramBot}`} target="_blank" rel="noopener noreferrer" style="color: inherit">{t('home.then3bot', { bot: stats.data.pool.telegramBot })}</a>{:else}{t('home.then3')}{/if}</span></li>
           <li><span class="ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><span>{t('home.then4', { url: `${poolDomain}/d/${btcValid ? shortHash(btcTrim, 4, 3) : 'bc1q…'}` })}</span></li>
         </ul>
+        {#if tutorialVideos.length > 0}
+          <a class="tutlink" href="/links">
+            <span class="ico" style="border-color: #1E5A7A"><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
+            <span>{t('links.homeHint')}</span>
+            <span aria-hidden="true" style="margin-left: auto">→</span>
+          </a>
+        {/if}
       </section>
     </div>
   </div>
@@ -275,6 +283,8 @@
   .then { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-2); }
   .then li { display: flex; gap: 10px; }
   .ico { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border-3); display: grid; place-items: center; flex: none; }
+  .tutlink { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+  .tutlink:hover { color: var(--accent); }
   @media (max-width: 980px) {
     .cols { grid-template-columns: 1fr; }
     .fields { grid-template-columns: 1fr; }

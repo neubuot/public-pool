@@ -16,6 +16,7 @@
   import NotFound from './pages/NotFound.svelte';
   import Doi from './pages/Doi.svelte';
   import Integrations from './pages/Integrations.svelte';
+  import Links from './pages/Links.svelte';
   import PoolDashboard from './pages/PoolDashboard.svelte';
   import ShareBest from './pages/ShareBest.svelte';
   import ShareCard from './pages/ShareCard.svelte';
@@ -31,6 +32,7 @@
     { pattern: '/status', component: Status },
     { pattern: '/doi', component: Doi },
     { pattern: '/syndicate', component: Syndicate },
+    { pattern: '/links', component: Links },
     { pattern: '/explorer', component: Explorer },
     { pattern: '/explorer/:chain/block/:id', component: ExplorerBlock },
     { pattern: '/explorer/:chain/tx/:txid', component: ExplorerTx },
