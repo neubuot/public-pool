@@ -63,7 +63,7 @@ gesamte Kette (rund 750 GB Traffic) und dauert 6 bis 24 Stunden.
 | Port | `3333` |
 | Benutzername | `<BTC-Adresse>.<Gerätename>` |
 | Passwort | `<DOI-Adresse>` (oder `doi=<DOI-Adresse>`, kombinierbar mit `d=<Difficulty>`) |
-| Syndikat-Modus | `<DOI-Adresse>,syndicate` (DOI-Funde werden mit den Mitgliedern geteilt, siehe unten) |
+| Syndikat-Modus | `<DOI-Adresse>,syndicate` im Passwort oder `<BTC-Adresse>.<Gerätename>,syndicate` als Benutzername (DOI-Funde werden mit den Mitgliedern geteilt, siehe unten) |
 
 Ohne DOI-Adresse im Passwort geht die DOI-Belohnung an `DOICHAIN_DEFAULT_ADDRESS`. Das Dashboard unter
 `https://pool.doilabs.org` (Quellcode in `web/`, Beschreibung in `web/README.md`) führt durch das Onboarding
@@ -113,7 +113,9 @@ Webhooks. Rekorde innerhalb von 90 Sekunden werden zu einer Nachricht mit dem h�
 ein frischer Miner, der sich in der ersten Stunde ständig selbst schlägt, erträglich.
 
 Syndikat-Modus (seit 02.11.2026): Steht hinter der DOI-Adresse im Stratum-Passwort `,syndicate` (auch
-`syndikat`, `syn` oder `s=1`), teilt die Session ihre Doichain-Funde mit den anderen Mitgliedern. Jeder
+`syndikat`, `syn` oder `s=1`), teilt die Session ihre Doichain-Funde mit den anderen Mitgliedern. Seit 11.11.2026
+zählt das Wort auch am Ende des Benutzernamens (`bc1q….bitaxe1,syndicate`, für Mietportale und Firmwares, die nur
+den Benutzernamen ändern lassen); `parseStratumUser` nimmt es dort heraus, der Worker heißt dann `bitaxe1`. Jeder
 angenommene Share wird der DOI-Adresse mit seiner Difficulty gutgeschrieben (`syndicate_share_entity`, je Adresse
 und Stunde, Flush alle 15 s, 90 Tage aufbewahrt). Für das Syndikat baut `SyndicateService` den Doichain-Block
 selbst aus `getblocktemplate` (`src/utils/aux-block.ts`): ein Coinbase mit einem Ausgang je Mitglied, Betrag

@@ -76,3 +76,46 @@ describe('AuthorizationMessage syndicate flag', () => {
         expect(parse('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,syndicates').syndicate).toBe(false);
     });
 });
+
+describe('AuthorizationMessage syndicate word in the user name', () => {
+    const parse = (user: string, password = 'dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w') => plainToInstance(
+        AuthorizationMessage,
+        JSON.parse(JSON.stringify({ id: 3, method: 'mining.authorize', params: [user, password] }))
+    );
+
+    it('switches syndicate mode on and keeps the worker name clean', () => {
+        const message = parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.nerdminer2lh,syndicate');
+        expect(message.syndicate).toBe(true);
+        expect(message.address).toBe('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r');
+        expect(message.worker).toBe('nerdminer2lh');
+        expect(message.doiAddress).toBe('dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w');
+    });
+
+    it('accepts the other spellings and separators', () => {
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.axe1;Syndikat').worker).toBe('axe1');
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.axe1 syn').syndicate).toBe(true);
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.axe1,s=1').syndicate).toBe(true);
+    });
+
+    it('works without a worker name', () => {
+        const message = parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r,syndicate');
+        expect(message.syndicate).toBe(true);
+        expect(message.address).toBe('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r');
+        expect(message.worker).toBe('worker');
+    });
+
+    it('leaves user names without the word exactly as they are', () => {
+        const message = parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.my axe,2');
+        expect(message.syndicate).toBe(false);
+        expect(message.worker).toBe('my axe,2');
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.syndicate').syndicate).toBe(false);
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.syndicate').worker).toBe('syndicate');
+        expect(parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.axe,s=0').syndicate).toBe(false);
+    });
+
+    it('still reads the word from the password', () => {
+        const message = parse('bc1q4e0zx4afrmzqy2shuq9pypqky6junwwktzax9r.axe1', 'dc1qqf79wlchwd2jxpe3674h30xqsfypy7dr3hze6w,syndicate');
+        expect(message.syndicate).toBe(true);
+        expect(message.worker).toBe('axe1');
+    });
+});
